@@ -1,0 +1,15 @@
+{
+    "key_generation": {
+        "type": "rsa",
+        "rsaBits": 4096,
+        "keyExpirationTime": 94608000
+    },
+    "store_revocation": true,
+    "trust_sign": [
+        {
+            "ca": "ASCII ARMORED CA PUBLIC KEY",
+            "domain_scope": "example.org",
+            "name": "Example CA"
+        }
+    ]
+}

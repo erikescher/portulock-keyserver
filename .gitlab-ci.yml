@@ -1,0 +1,182 @@
+# Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
+# SPDX-License-Identifier: GPL-3.0-only
+
+stages:
+  - build
+  - test
+
+server_build:
+  image: rustlang/rust:nightly
+  stage: build
+  before_script:
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - cd portulock-keyserver
+  only:
+    changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - portulock-keyserver/target/release/aggregator
+      - portulock-keyserver/target/debug/aggregator
+      - portulock-keyserver/target/release/verifier
+      - portulock-keyserver/target/debug/verifier
+
+server_test:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - cd portulock-keyserver
+  needs: []
+  only:
+    changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo test
+
+server_lint:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - rustup component add clippy
+    - cd portulock-keyserver
+  needs: []
+  only:
+    changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo clippy -- -D warnings
+
+server_format:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - cd portulock-keyserver
+  needs: []
+  only:
+    changes:
+      - "portulock-keyserver/**/*.rs"
+      - "portulock-keyserver/rustfmt.toml"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo fmt -- --check
+
+server_audit:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - cargo install cargo-audit
+    - cd portulock-keyserver
+  needs: []
+  only:
+    changes:
+      - "portulock-keyserver/Cargo.lock"
+      - "portulock-keyserver/**/Cargo.toml"
+      - "portulock-keyserver/.cargo/audit.toml"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo audit
+
+wasm_build:
+  image: rust
+  stage: build
+  before_script:
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev librust-clang-sys*
+    - rustup target add wasm32-unknown-unknown
+    - cargo install wasm-pack --vers 0.9.1
+    - cd openpgp-trustsign-wasm
+  script:
+    - wasm-pack build
+  needs: []
+  only:
+    changes:
+      - "keyserver-ui/**/*"
+      - "openpgp-trustsign-wasm/**/*"
+      - ".gitlab-ci.yml"
+  artifacts:
+    paths:
+      - openpgp-trustsign-wasm/pkg
+
+wasm_lint:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - rustup component add clippy
+    - cd openpgp-trustsign-wasm
+  needs: []
+  only:
+    changes:
+      - "openpgp-trustsign-wasm/**/*"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo clippy -- -D warnings
+
+wasm_format:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - rustup component add rustfmt
+    - cd openpgp-trustsign-wasm
+  needs: []
+  only:
+    changes:
+      - "openpgp-trustsign-wasm/**/*.rs"
+      - "openpgp-trustsign-wasm/rustfmt.toml"
+      - ".gitlab-ci.yml"
+  script:
+    - cargo fmt -- --check
+
+wasm_audit:
+  image: rustlang/rust:nightly
+  stage: test
+  before_script:
+    - cargo install cargo-audit
+    - cd openpgp-trustsign-wasm
+  only:
+    changes:
+      - "openpgp-trustsign-wasm/Cargo.lock"
+      - "openpgp-trustsign-wasm/**/Cargo.toml"
+      - "openpgp-trustsign-wasm/.cargo/audit.toml"
+  script:
+    - cargo audit
+
+ui_build:
+  image: node:lts
+  stage: build
+  before_script:
+    - cd keyserver-ui
+  only:
+    changes:
+      - "keyserver-ui/package.json"
+      - "keyserver-ui/package-lock.json"
+      - "keyserver-ui/**/*"
+      - ".gitlab-ci.yml"
+  needs:
+    - wasm_build
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - keyserver-ui/dist
+
+
+ui_audit:
+  image: node:lts
+  stage: test
+  before_script:
+    - cd keyserver-ui
+  needs: []
+  only:
+    changes:
+      - "keyserver-ui/package.json"
+      - "keyserver-ui/package-lock.json"
+      - ".gitlab-ci.yml"
+  script:
+    - npm audit --production

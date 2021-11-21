@@ -1,0 +1,34 @@
+# Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
+# SPDX-License-Identifier: GPL-3.0-only
+
+version: "3.4"
+services:
+  aggregator:
+    build:
+      context: .
+      target: aggregator
+    restart: always
+    volumes:
+      - ./aggregator.toml:/app/Rocket.toml
+  verifier:
+    build:
+      context: .
+      target: verifier
+    restart: always
+    volumes:
+      - ./verifier.toml:/app/Rocket.toml:ro
+      - ./state:/app/state:rw
+      - wkd:/app/wkd:rw
+  nginx:
+    build:
+      context: .
+      target: reverse_proxy
+    restart: always
+    volumes:
+      - ./ui.json:/var/www/html/config/ui.json:ro
+      - wkd:/wkd:ro
+    ports:
+      - "127.0.0.1:8080:80"
+
+volumes:
+  wkd: # intentionally empty

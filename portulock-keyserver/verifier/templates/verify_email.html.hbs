@@ -1,0 +1,15 @@
+<html lang="en">
+<head>
+    <title>Confirm Email for GPG Key</title>
+</head>
+<body>
+    <h1>Confirm Email for GPG Key</h1>
+    <p>Please check the fingerprint below against the key you generated locally.</p>
+    <p>Fingerprint: {{fpr}}</p>
+    <p>Email: {{email}}</p>
+    <form action="{{confirm_url}}" method="post">
+        <input type="hidden" name="email_token" value="{{email_token}}"/>
+        <input type="submit" value="Confirm Fingerprint"/>
+    </form>
+</body>
+</html>

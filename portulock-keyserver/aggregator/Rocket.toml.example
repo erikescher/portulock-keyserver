@@ -1,0 +1,9 @@
+[global.lookup_config.special_domains."example.org"]
+    use_wkd = true
+
+[global.lookup_config.special_domains."example.com"]
+use_wkd = false
+keyservers = ["hkps://keyserver.example.com"]
+
+[global.lookup_config.fallbacks.wkd_fallback]
+    use_wkd = true

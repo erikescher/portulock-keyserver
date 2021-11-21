@@ -1,0 +1,5 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2020-0159", # 'chrono' localtime_r segfault: No solution available as of 2021-11
+    "RUSTSEC-2020-0071", # 'time' segfaults: Dependency of sequoia-openpgp=1.5.0
+]

@@ -1,0 +1,18 @@
+[global]
+secret_key = "REPLACE ME WITH A RANDOM SECRET" # use "openssl rand -base64 32"
+token_signing_key = "REPLACE ME WITH ANOTHER RANDOM SECRET" # use "openssl rand -base64 32"
+external_url = "https://keyserver.example.org" # external URL under which the keyserver is accessible to users
+
+allowed_domains = [
+    "example.org"
+]
+
+smtp_host = "smtp.example.org"
+smtp_port = 465
+smtp_user = "keyserver"
+smtp_pass = "PASSWORD FOR THE SMTP USER"
+smtp_from = "keyserver@example.org"
+
+oidc_issuer_url = "https://sso.example.org"
+oidc_client_id = "OIDC CLIENT ID"
+oidc_client_secret = "OIDC CLIENT SECRET" # remove the key if this is not required

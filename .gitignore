@@ -1,0 +1,11 @@
+**/.idea
+**/*.iml
+**/target
+**/state
+**/wkd
+**/Rocket.toml
+/state
+/verifier.toml
+/aggregator.toml
+/ui.json
+*.iml

@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2020-0159", # 'chrono' localtime_r segfault: No solution available as of 2021-11
+    "RUSTSEC-2021-0079", # 'hyper' data loss: Not applicable, likely due to sequoia-net=0.23.0
+    "RUSTSEC-2021-0078", # 'hyper' request smuggling: Not exploitable
+    "RUSTSEC-2020-0071", # 'time' segfaults: Dependency of rocket=0.4.10; fixed in rocket=0.5.0-rc.1
+    "RUSTSEC-2021-0124", # 'tokio' data race: Dependency of sequoia-net=0.23.0, should not be triggered.
+]

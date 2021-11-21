@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "aggregator",
+    "shared",
+    "verifier",
+]

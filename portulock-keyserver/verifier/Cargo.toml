@@ -1,0 +1,30 @@
+[package]
+name = "verifier"
+version = "0.1.0"
+authors = ["Erik Escher <erik@erikescher.de>"]
+edition = "2018"
+
+[dependencies]
+shared = {path="../shared"}
+serde = { version="1.0", features= ["derive"]}
+serde_json = "1.0"
+rocket = "0.4"
+rocket_contrib = {version="0.4", features=["json", "diesel_mysql_pool","diesel_sqlite_pool", "redis_pool", "handlebars_templates"]}
+jsonwebtoken = "7"
+sequoia-openpgp = "1"
+sequoia-net = "0.23.0"  # currently GPL, should be LGPL with next release
+rand = "0.8"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
+anyhow = "1"
+tokio = { version = "0.2", features = ["full"] }
+async-trait = "0.1.50"
+diesel = { version = "1", features = ["sqlite", "mysql", "chrono"]}
+diesel_migrations = "1"
+chrono = "0.4"
+openpgp-ca-lib = "0.10.1" # GPL
+lettre = "0.10.0-rc.3"
+base64 = "0.13.0"
+urlencoding = "2.1.0"
+openidconnect = "2.1.0"
+num-traits = "0.2.14"
+rusqlite = "0.25.3" # note: version conflicts with diesel and openpgp-ca-lib via shared dependency on libsqlite3-sys

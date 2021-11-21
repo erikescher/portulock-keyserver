@@ -1,0 +1,132 @@
+<html lang="en">
+<head>
+    <title>Key Status</title>
+    <style>
+        .padding_right {
+            padding-right: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Key Status</h1>
+<p>Use the browser refresh function to update.</p>
+<p>Fingerprint: {{fpr}}</p>
+<h3>Verified Information about the Key Holder</h3>
+<p>The following section contains names and email addresses approved for use on this certificate.</p>
+<div>Approved Names:
+    <ul>
+        {{#each approved_names}}
+            <li>{{this}}</li>
+        {{/each}}
+    </ul>
+</div>
+<div>Approved Emails:
+    <ul>
+        {{#each approved_emails}}
+            <li>{{this}}</li>
+        {{/each}}
+    </ul>
+</div>
+
+{{#if published_cert}}
+    <h3>Published Key Data</h3>
+    <p>The following section contains published data for the key.</p>
+    {{#if published_primary }}
+        <div>Published Primary Key: {{published_primary.size}}/{{published_primary.algo}} {{published_primary.flags}}</div>
+    {{/if}}
+    {{#if published_subkeys}}
+        <div>Published Subkeys:
+            <ul>
+                {{#each published_subkeys}}
+                    <li>{{this.keyid}}: {{this.size}}/{{this.algo}} {{this.flags}} {{this.fpr}}</li>
+                {{/each}}
+            </ul>
+        </div>
+    {{/if}}
+    {{#if published_uids}}
+        <div>Published UIDs:
+            <ul>
+                {{#each published_uids}}
+                    <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+    {{/if}}
+{{/if}}
+
+{{#if published_cert}}
+    <div>Published Cert:
+        <pre>{{published_cert}}</pre>
+    </div>
+{{/if}}
+{{#if pending_cert}}
+    <h3>Key Data Pending Approval</h3>
+    <p>The following section contains key data stored on the server that has not been published yet, because associated UserIDs have not been approved yet.</p>
+    {{#if pending_primary }}
+        <div>Pending Primary Key: {{pending_primary.size}}/{{pending_primary.algo}} {{pending_primary.flags}}</div>
+    {{/if}}
+    {{#if pending_subkeys}}
+        <div>Pending Subkeys:
+            <ul>
+                {{#each pending_subkeys}}
+                    <li>{{this.keyid}}: {{this.size}}/{{this.algo}} {{this.flags}} {{this.fpr}}</li>
+                {{/each}}
+            </ul>
+        </div>
+
+    {{/if}}
+    {{#if pending_uids}}
+        <div>Pending UIDs:
+            <ul>
+                {{#each pending_uids}}
+                    <li style="display: flex; flex-direction: row">
+                        <span class="padding_right">{{this.full}}</span>
+                        {{#if this.name_verification_required}}
+                            <form action="/verify/name_start" method="get" class="padding_right">
+                                <input type="hidden" name="fpr" value="{{../fpr}}"/>
+                                <input type="hidden" name="this.name" value="{{this.name}}"/>
+                                <button type="submit">Verify name</button>
+                            </form>
+                        {{/if}}
+                        {{#if this.email_verification_required}}
+                            <form action="/verify/email_request" method="get" class="padding_right">
+                                <input type="hidden" name="fpr" value="{{../fpr}}"/>
+                                <input type="hidden" name="email" value="{{this.email}}"/>
+                                <button type="submit">Verify email</button>
+                            </form>
+                        {{/if}}
+                    </li>
+                {{/each}}
+            </ul>
+        </div>
+    {{/if}}
+{{/if}}
+
+{{#if stored_revocations }}
+    <h3>Stored Revocations</h3>
+    <p>
+        The following revocations are stored on the keyserver and can be used by the user or administrator to revoke this
+        key even if the private key is no longer available.
+    </p>
+    {{#each stored_revocations}}
+        <pre>{{this}}</pre>
+    {{/each}}
+{{/if}}
+
+<h3>Download all Key Data</h3>
+<p>This includes published and unpublished data as well as any certifications.</p>
+<a href="/manage/download_authenticated?management_token={{management_token}}" download>Download Certificate</a>
+
+<h3>Delete Everything</h3>
+{{#if deletion_allowed }}
+    <p>Clicking this button will delete all data associated with this key from the server. You will not be asked to confirm this request.</p>
+    <form action="/manage/delete" method="get">
+        <input type="hidden" name="management_token" value="{{management_token}}"/>
+        <button type="submit">Delete the entire Certificate.</button>
+    </form>
+{{else}}
+    <p>This cert cannot be deleted by the user. Contact the administrator for deletion.</p>
+{{/if}}
+
+</body>
+</html>
