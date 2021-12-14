@@ -290,7 +290,8 @@ that will be used by WKD clients to locate keys and an additional domain such as
 the web generator.
 
 ## Further Details
-Further details are described in the associated master thesis, that will likely be published here later.
+Further details are described in the associated master thesis, which is provided in `thesis.pdf`.
+The associated presentation slides are available in `thesis_presentation.pdf`.
 
 ----
 Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
