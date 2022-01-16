@@ -30,7 +30,7 @@ use crate::filtering::applier::KeyFilterApplier;
 use crate::filtering::filters::KeyFilterSubtractingPackets;
 use crate::key_storage::emails_from_cert;
 use crate::key_storage::KeyStore;
-use crate::submission::Mailer;
+use crate::submission::mailer::Mailer;
 use crate::types::Email;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::SignedToken;

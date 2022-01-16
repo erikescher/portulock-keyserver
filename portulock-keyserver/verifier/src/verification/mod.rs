@@ -16,7 +16,7 @@ use crate::db::{
 };
 use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
-use crate::submission::Mailer;
+use crate::submission::mailer::Mailer;
 use crate::types::Email;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::oidc_verification::{OIDCAuthChallenge, OidcVerifier};

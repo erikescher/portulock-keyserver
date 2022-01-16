@@ -39,7 +39,7 @@ use crate::key_storage::multi_keystore::MultiOpenPGPCALib;
 use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use crate::key_storage::KeyStore;
 use crate::management::random_string;
-use crate::submission::{Mailer, NoopMailer, SmtpMailer};
+use crate::submission::mailer::{Mailer, NoopMailer, SmtpConnectionSecurity, SmtpMailer};
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::oidc_verification::OidcVerifier;
 use crate::verification::{OpenIDConnectConfig, OpenIDConnectConfigEntry, TokenKey, VerificationConfig};
@@ -178,6 +178,16 @@ fn main() {
             let external_url = rocket.config().get_str("external_url").unwrap().to_string();
             let rocket = rocket.manage(ExternalURLHolder(external_url));
 
+            let smtp_security = match rocket.config().get_str("smtp_security").unwrap_or("tls") {
+                "tls" => SmtpConnectionSecurity::Tls,
+                "starttls" => SmtpConnectionSecurity::StartTls,
+                "none" => SmtpConnectionSecurity::None,
+                other => panic!(
+                    "Unknown value for smtp_security: {}. Known values: tls, starttls, none.",
+                    other
+                ),
+            };
+
             let mailer = SmtpMailer::new(
                 rocket.config().get_str("smtp_host").unwrap(),
                 rocket.config().get_str("smtp_user").unwrap(),
@@ -185,6 +195,7 @@ fn main() {
                 rocket.config().get_int("smtp_port").unwrap() as u16,
                 rocket.config().get_str("smtp_from").unwrap(),
                 rocket.config().get_str("external_url").unwrap(),
+                &smtp_security,
             );
             let rocket = rocket.manage(MailerHolder::SmtpMailer(mailer));
 

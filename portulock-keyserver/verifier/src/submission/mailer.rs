@@ -52,13 +52,31 @@ impl Debug for SmtpMailer {
     }
 }
 
+pub enum SmtpConnectionSecurity {
+    None,
+    Tls,
+    StartTls,
+}
+
 impl SmtpMailer {
-    pub fn new(host: &str, user: &str, pass: &str, port: u16, from: &str, verification_endpoint_url: &str) -> Self {
-        let connection = SmtpTransport::relay(host)
-            .unwrap()
-            .credentials(Credentials::new(user.to_string(), pass.to_string()))
-            .port(port)
-            .build();
+    pub fn new(
+        host: &str,
+        user: &str,
+        pass: &str,
+        port: u16,
+        from: &str,
+        verification_endpoint_url: &str,
+        connection_security: &SmtpConnectionSecurity,
+    ) -> Self {
+        let connection = match connection_security {
+            SmtpConnectionSecurity::None => SmtpTransport::builder_dangerous(host),
+            SmtpConnectionSecurity::Tls => SmtpTransport::relay(host).unwrap(),
+            SmtpConnectionSecurity::StartTls => SmtpTransport::starttls_relay(host).unwrap(),
+        }
+        .credentials(Credentials::new(user.to_string(), pass.to_string()))
+        .port(port)
+        .build();
+
         SmtpMailer {
             connection,
             from: Mailbox::new(None, Address::from_str(from).unwrap()),

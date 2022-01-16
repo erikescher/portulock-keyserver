@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-pub use mailer::Mailer;
-pub use mailer::NoopMailer;
-pub use mailer::SmtpMailer;
+use mailer::Mailer;
 use sequoia_openpgp::Cert;
 
 use crate::db::VerificationChallenge;
@@ -16,7 +14,7 @@ use crate::verification::TokenKey;
 use crate::SubmitterDBConn;
 
 mod internal_submission;
-mod mailer;
+pub mod mailer;
 
 #[derive(Debug)]
 pub struct SubmissionConfig {
