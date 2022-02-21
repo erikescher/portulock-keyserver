@@ -91,10 +91,11 @@ server_image_verifier:
   stage: images
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target verifier --tag $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID .
-    - docker tag $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
-    - docker push $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID
-    - docker push $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
+    - docker build --target verifier --tag verifier .
+    - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
+    - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
   needs: []
   only:
     changes:
@@ -110,10 +111,11 @@ server_image_aggregator:
   stage: images
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target aggregator --tag $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID .
-    - docker tag $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
-    - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID
-    - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
+    - docker build --target aggregator --tag aggregator .
+    - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
+    - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
   needs: []
   only:
     changes:
@@ -227,10 +229,11 @@ reverse_proxy_image:
   stage: images
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target reverse_proxy --tag $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID .
-    - docker tag $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
-    - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID
-    - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
+    - docker build --target reverse_proxy --tag reverse_proxy .
+    - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
+    - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
   needs: []
   only:
     changes:
