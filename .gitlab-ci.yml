@@ -4,6 +4,8 @@
 stages:
   - build
   - test
+  - quality
+  - audit
   - images
 
 server_build:
@@ -41,7 +43,7 @@ server_test:
 
 server_lint:
   image: rustlang/rust:nightly
-  stage: test
+  stage: quality
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
     - rustup component add clippy
@@ -56,7 +58,7 @@ server_lint:
 
 server_format:
   image: rustlang/rust:nightly
-  stage: test
+  stage: quality
   before_script:
     - cd portulock-keyserver
   needs: []
@@ -70,7 +72,7 @@ server_format:
 
 server_audit:
   image: rustlang/rust:nightly
-  stage: test
+  stage: audit
   before_script:
     - cargo install cargo-audit
     - cd portulock-keyserver
@@ -144,7 +146,7 @@ wasm_build:
 
 wasm_lint:
   image: rustlang/rust:nightly
-  stage: test
+  stage: quality
   before_script:
     - rustup component add clippy
     - cd openpgp-trustsign-wasm
@@ -158,7 +160,7 @@ wasm_lint:
 
 wasm_format:
   image: rustlang/rust:nightly
-  stage: test
+  stage: quality
   before_script:
     - rustup component add rustfmt
     - cd openpgp-trustsign-wasm
@@ -173,7 +175,7 @@ wasm_format:
 
 wasm_audit:
   image: rustlang/rust:nightly
-  stage: test
+  stage: audit
   before_script:
     - cargo install cargo-audit
     - cd openpgp-trustsign-wasm
@@ -208,7 +210,7 @@ ui_build:
 
 ui_audit:
   image: node:lts
-  stage: test
+  stage: audit
   before_script:
     - cd keyserver-ui
   needs: []
