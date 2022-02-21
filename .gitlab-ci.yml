@@ -93,6 +93,7 @@ server_image_verifier:
     - docker tag $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
+  needs: []
   only:
     changes:
       - "portulock-keyserver/**/*"
@@ -108,6 +109,7 @@ server_image_aggregator:
     - docker tag $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
+  needs: []
   only:
     changes:
       - "portulock-keyserver/**/*"
@@ -221,6 +223,7 @@ reverse_proxy_image:
     - docker tag $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
+  needs: []
   only:
     changes:
       - "keyserver-ui/**/*"
