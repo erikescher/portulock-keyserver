@@ -4,6 +4,7 @@
 stages:
   - build
   - test
+  - images
 
 server_build:
   image: rustlang/rust:nightly
@@ -82,6 +83,36 @@ server_audit:
       - ".gitlab-ci.yml"
   script:
     - cargo audit
+
+server_image_verifier:
+  image: docker
+  stage: images
+  script:
+    - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --target verifier --tag $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID .
+    - docker tag $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE:verifier_$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE:verifier_$CI_COMMIT_BRANCH
+  only:
+    changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
+
+server_image_aggregator:
+  image: docker
+  stage: images
+  script:
+    - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --target aggregator --tag $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID .
+    - docker tag $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE:aggregator_$CI_COMMIT_BRANCH
+  only:
+    changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
 
 wasm_build:
   image: rust
@@ -180,3 +211,20 @@ ui_audit:
       - ".gitlab-ci.yml"
   script:
     - npm audit --production
+
+reverse_proxy_image:
+  image: docker
+  stage: images
+  script:
+    - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --target reverse_proxy --tag $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID .
+    - docker tag $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
+    - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_JOB_ID
+    - docker push $CI_REGISTRY_IMAGE:reverse_proxy_$CI_COMMIT_BRANCH
+  only:
+    changes:
+      - "keyserver-ui/**/*"
+      - "openpgp-trustsign-wasm/**/*"
+      - "reverse-proxy/**/*"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
