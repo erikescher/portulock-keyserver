@@ -96,7 +96,10 @@ server_image_verifier:
   needs: []
   only:
     changes:
-      - "portulock-keyserver/**/*"
+      - "portulock-keyserver/verifier/**/*"
+      - "portulock-keyserver/shared/**/*"
+      - "portulock-keyserver/Cargo.lock"
+      - "portulock-keyserver/Cargo.toml"
       - ".gitlab-ci.yml"
       - "Dockerfile"
 
@@ -112,7 +115,10 @@ server_image_aggregator:
   needs: []
   only:
     changes:
-      - "portulock-keyserver/**/*"
+      - "portulock-keyserver/aggregator/**/*"
+      - "portulock-keyserver/shared/**/*"
+      - "portulock-keyserver/Cargo.lock"
+      - "portulock-keyserver/Cargo.toml"
       - ".gitlab-ci.yml"
       - "Dockerfile"
 
