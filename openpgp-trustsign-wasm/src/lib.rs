@@ -43,7 +43,7 @@ fn trust_sign_internal(
 
         let signature = match &domain_scope {
             Some(domain_scope) => {
-                let regex_domain = domain_scope.replace(".", "\\.");
+                let regex_domain = domain_scope.replace('.', "\\.");
                 let trust_regex = format!("<[^>]+[@.]{}>$", regex_domain);
                 signature_builder
                     .set_trust_signature(1, 120)?
