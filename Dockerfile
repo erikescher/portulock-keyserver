@@ -50,5 +50,5 @@ FROM nginx as reverse_proxy
 RUN rm /etc/nginx/conf.d/default.conf
 COPY reverse-proxy/combined.conf /etc/nginx/conf.d/
 COPY --from=npm_builder /build/dist /var/www/html/
-RUN rm /var/www/html/config/ui.json
+RUN rm /var/www/html/config/ui.json || true
 EXPOSE 80
