@@ -21,5 +21,10 @@ module.exports = {
         "/manage": backend_proxy_config,
         "/verify": backend_proxy_config
       }
+    },
+    configureWebpack: {
+        experiments: {
+            asyncWebAssembly: true
+        }
     }
 }
