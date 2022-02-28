@@ -81,7 +81,7 @@ const INTERNAL_SERVER_ERROR: rocket::http::Status = rocket::http::Status {
     reason: "Unknown client or server error!",
 };
 
-impl rocket::response::Responder<'r> for CustomError {
+impl<'r> rocket::response::Responder<'r> for CustomError {
     fn respond_to(self, request: &rocket::request::Request) -> Result<rocket::Response<'r>, rocket::http::Status> {
         println!("ERROR_RESPONSE: {}", self);
         let responder = match self {

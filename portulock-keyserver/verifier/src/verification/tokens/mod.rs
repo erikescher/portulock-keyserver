@@ -141,7 +141,7 @@ where
     payload_type: PhantomData<&'a T>,
 }
 
-impl<T> From<String> for SignedToken<'a, T>
+impl<'a, T> From<String> for SignedToken<'a, T>
 where
     T: Serialize + Deserialize<'a>,
 {
@@ -153,7 +153,7 @@ where
     }
 }
 
-impl<T> SignedToken<'a, T>
+impl<'a, T> SignedToken<'a, T>
 where
     T: Serialize + for<'d> Deserialize<'d>,
 {

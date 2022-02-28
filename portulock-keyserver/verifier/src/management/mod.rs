@@ -169,7 +169,7 @@ struct ChallengeHolder<'a> {
     nonce: String,
 }
 
-impl ChallengeHolder<'a> {
+impl<'a> ChallengeHolder<'a> {
     fn new(token: SignedToken<'a, ManagementToken>) -> Self {
         ChallengeHolder {
             reason: "GPG Keyserver Management Challenge".to_string(),

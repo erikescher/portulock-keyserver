@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#![feature(in_band_lifetimes)]
-
 pub mod certification;
 pub mod config;
 pub mod errors;
