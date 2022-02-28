@@ -7,6 +7,7 @@ stages:
   - quality
   - audit
   - images
+  - demo
 
 server_build:
   image: rustlang/rust:nightly
@@ -89,6 +90,13 @@ server_audit:
 server_image_verifier:
   image: docker
   stage: images
+  only:
+    changes:
+      - "portulock-keyserver/**"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
+  before_script:
+    - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - docker build --target verifier --tag verifier .
@@ -96,19 +104,17 @@ server_image_verifier:
     - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
-  needs: []
-  only:
-    changes:
-      - "portulock-keyserver/verifier/**/*"
-      - "portulock-keyserver/shared/**/*"
-      - "portulock-keyserver/Cargo.lock"
-      - "portulock-keyserver/Cargo.toml"
-      - ".gitlab-ci.yml"
-      - "Dockerfile"
 
 server_image_aggregator:
   image: docker
   stage: images
+  only:
+    changes:
+      - "portulock-keyserver/**"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
+  before_script:
+    - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - docker build --target aggregator --tag aggregator .
@@ -116,15 +122,6 @@ server_image_aggregator:
     - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
-  needs: []
-  only:
-    changes:
-      - "portulock-keyserver/aggregator/**/*"
-      - "portulock-keyserver/shared/**/*"
-      - "portulock-keyserver/Cargo.lock"
-      - "portulock-keyserver/Cargo.toml"
-      - ".gitlab-ci.yml"
-      - "Dockerfile"
 
 wasm_build:
   image: rust
@@ -227,6 +224,15 @@ ui_audit:
 reverse_proxy_image:
   image: docker
   stage: images
+  only:
+    changes:
+      - "reverse-proxy/**"
+      - "keyserver-ui/**"
+      - "openpgp-trustsign-wasm/**"
+      - ".gitlab-ci.yml"
+      - "Dockerfile"
+  before_script:
+    - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - docker build --target reverse_proxy --tag reverse_proxy .
@@ -235,10 +241,12 @@ reverse_proxy_image:
     - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
   needs: []
+
+deploy_demo:
+  stage: demo
   only:
-    changes:
-      - "keyserver-ui/**/*"
-      - "openpgp-trustsign-wasm/**/*"
-      - "reverse-proxy/**/*"
-      - ".gitlab-ci.yml"
-      - "Dockerfile"
+    refs:
+      - master
+  inherit:
+    variables: false
+  trigger: portulock/portulock-demo
