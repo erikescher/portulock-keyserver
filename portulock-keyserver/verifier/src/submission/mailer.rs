@@ -157,7 +157,7 @@ impl Mailer for NoopMailer {
 }
 
 fn sanitize_name(name: &str) -> String {
-    let mut name = name.replace("<", "□").replace(">", "□");
+    let mut name = name.replace('<', "□").replace('>', "□");
     if name.chars().count() > 256 {
         name = name.chars().take(256).collect();
         name.push_str("[...]")

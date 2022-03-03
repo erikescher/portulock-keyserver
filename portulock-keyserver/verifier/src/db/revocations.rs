@@ -33,8 +33,7 @@ impl PendingRevocation {
             .load::<Self>(connection)?
             .into_iter()
             .filter(|pr: &Self| ExpirationConfig::is_valid(pr.exp))
-            .map(|pr| revocations_from_string(pr.revocation).ok())
-            .flatten()
+            .filter_map(|pr| revocations_from_string(pr.revocation).ok())
             .flatten()
             .collect();
         Ok(result)

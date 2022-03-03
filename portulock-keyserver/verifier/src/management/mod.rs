@@ -133,8 +133,7 @@ pub async fn challenge_email(
 
     let mut emails: Vec<Email> = emails_from_cert(&cert)
         .iter()
-        .map(|e| Email::parse_option(e.as_str()))
-        .flatten()
+        .filter_map(|e| Email::parse_option(e.as_str()))
         .collect();
     if let Some(e) = email {
         if emails.contains(&e) {
@@ -331,8 +330,7 @@ pub async fn get_key_status(
         .await?
         .into_iter()
         .chain(keystore.get_stored_revocations(fpr).await?)
-        .map(|sig| armor_signature(sig).ok())
-        .flatten();
+        .filter_map(|sig| armor_signature(sig).ok());
     let stored_revocations: HashSet<String, RandomState> = HashSet::from_iter(stored_revocations);
     let stored_revocations = stored_revocations.into_iter().collect();
 

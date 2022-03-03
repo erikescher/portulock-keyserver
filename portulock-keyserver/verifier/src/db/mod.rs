@@ -274,8 +274,7 @@ pub async fn get_pending_certs_by_email(
 ) -> Result<Vec<Cert>, diesel::result::Error> {
     let fingerprints = VerifiedEmailEntry::list_by_email(&*submitter_db, email.get_email().as_str())?
         .into_iter()
-        .map(|vee| Fingerprint::from_hex(vee.fpr().as_str()).ok())
-        .flatten();
+        .filter_map(|vee| Fingerprint::from_hex(vee.fpr().as_str()).ok());
 
     let mut certs = vec![];
     for fpr in fingerprints {

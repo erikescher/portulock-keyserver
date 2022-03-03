@@ -258,8 +258,7 @@ impl KeyStore for &OpenPGPCALib {
             .get_ca()?
             .revocations_get(&cert)?
             .into_iter()
-            .map(|rev| revocations_from_string(rev.revocation).ok())
-            .flatten()
+            .filter_map(|rev| revocations_from_string(rev.revocation).ok())
             .flatten()
             .collect())
     }
