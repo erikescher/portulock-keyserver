@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 
 use openidconnect::core::{
@@ -21,6 +22,7 @@ use shared::errors::CustomError;
 use tracing::{info, trace};
 
 use crate::errors::VerifierError;
+use crate::verification::sso::{AuthChallengeData, VerifiedSSOClaims};
 
 #[derive(Debug)]
 pub struct OidcVerifier {
@@ -86,7 +88,7 @@ impl OidcVerifier {
     }
 
     #[tracing::instrument]
-    pub fn get_auth_url(&self) -> (Url, OIDCAuthChallenge) {
+    pub fn get_auth_url(&self) -> Result<(Url, AuthChallengeData), VerifierError> {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, csrf_token, nonce) = self
             .client
@@ -106,24 +108,28 @@ impl OidcVerifier {
             nonce.secret()
         );
 
-        (auth_url, OIDCAuthChallenge::new(csrf_token, nonce, pkce_verifier))
+        Ok((
+            auth_url,
+            OIDCAuthChallenge::new(csrf_token, nonce, pkce_verifier).into(),
+        ))
     }
 
     #[tracing::instrument]
-    pub async fn verify_token_and_extract_claims(
+    pub async fn verify_and_extract_claims(
         &self,
-        auth_challenge: OIDCAuthChallenge,
-        authorization_code: &str,
-    ) -> Result<VerifiedOpenIDConnectClaims, CustomError> {
-        info!(
-            "OIDC Authentication Code:\n code: {}\n nonce: {}", // TODO mask code in logs
-            authorization_code,
-            auth_challenge.nonce.secret()
-        );
+        auth_challenge: AuthChallengeData,
+        auth_response: &str,
+        auth_state: &str,
+    ) -> Result<VerifiedSSOClaims, VerifierError> {
+        let auth_challenge = OIDCAuthChallenge::try_from(auth_challenge)?;
+
+        if auth_challenge.get_state() != auth_state {
+            return Err("Failed to validate OAuth State parameter!".into());
+        }
 
         let token_response = self
             .client
-            .exchange_code(AuthorizationCode::new(authorization_code.to_string()))
+            .exchange_code(AuthorizationCode::new(auth_response.to_string()))
             .set_pkce_verifier(auth_challenge.pkce_verifier)
             .request_async(async_http_client)
             .await
@@ -155,7 +161,7 @@ impl OidcVerifier {
                 )
                 .map_err(|e| CustomError::String(format!("{:?}", e)))?;
                 if actual_access_token_hash != *expected_access_token_hash {
-                    return Err(CustomError::String("Invalid access token".to_string()));
+                    return Err(VerifierError::String("Invalid access token".to_string()));
                 }
             }
 
@@ -182,15 +188,19 @@ struct OpenIDConnectClaimsInProgress {
 }
 
 impl OpenIDConnectClaimsInProgress {
-    fn complete(self) -> Result<VerifiedOpenIDConnectClaims, CustomError> {
+    fn complete(self) -> Result<VerifiedSSOClaims, VerifierError> {
+        let mut emails = vec![];
+        if let Some(email) = self.verified_email {
+            emails.push(email)
+        }
         match self.name {
-            None => Err(CustomError::String(
+            None => Err(VerifierError::String(
                 "Failed to obtain Name from both the IdentityToken and (if available) the UserInfo Endpoint!"
                     .to_string(),
             )),
-            Some(name) => Ok(VerifiedOpenIDConnectClaims {
-                name,
-                verified_email: self.verified_email,
+            Some(name) => Ok(VerifiedSSOClaims {
+                names: vec![name],
+                emails,
             }),
         }
     }
@@ -253,5 +263,49 @@ impl OIDCAuthChallenge {
 
     pub fn get_state(&self) -> &str {
         self.csrf_token.secret().as_str()
+    }
+}
+
+impl TryFrom<AuthChallengeData> for OIDCAuthChallenge {
+    type Error = VerifierError;
+
+    fn try_from(value: AuthChallengeData) -> Result<Self, Self::Error> {
+        let challenge_type = value
+            .get("type")
+            .ok_or_else(|| VerifierError::from("Missing type in AuthChallenge!"))?;
+        if challenge_type != "oidc" {
+            return Err("Wrong type in AuthChallenge!".into());
+        }
+        Ok(Self {
+            csrf_token: CsrfToken::new(
+                value
+                    .get("csrf_token")
+                    .ok_or("Missing csrf_token in oidc AuthChallenge!")?
+                    .to_string(),
+            ),
+            nonce: Nonce::new(
+                value
+                    .get("nonce")
+                    .ok_or("Missing nonce in oidc AuthChallenge!")?
+                    .to_string(),
+            ),
+            pkce_verifier: PkceCodeVerifier::new(
+                value
+                    .get("pkce_verifier")
+                    .ok_or("Missing pkce_verifier in oidc AuthChallenge!")?
+                    .to_string(),
+            ),
+        })
+    }
+}
+
+impl From<OIDCAuthChallenge> for AuthChallengeData {
+    fn from(oidc: OIDCAuthChallenge) -> Self {
+        let mut map = AuthChallengeData::new();
+        map.insert("type".to_string(), "oidc".to_string());
+        map.insert("csrf_token".to_string(), oidc.csrf_token.secret().to_string());
+        map.insert("nonce".to_string(), oidc.nonce.secret().to_string());
+        map.insert("pkce_verifier".to_string(), oidc.pkce_verifier.secret().to_string());
+        map
     }
 }

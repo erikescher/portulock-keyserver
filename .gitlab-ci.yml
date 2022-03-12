@@ -27,7 +27,7 @@ server_build:
   image: rustlang/rust:nightly
   stage: build
   before_script:
-    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
     - cd portulock-keyserver
   script:
     - cargo build --release
@@ -48,7 +48,7 @@ server_test:
   image: rustlang/rust:nightly
   stage: test
   before_script:
-    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
     - cd portulock-keyserver
   needs: []
   script:
@@ -64,7 +64,7 @@ server_lint:
   image: rustlang/rust:nightly
   stage: quality
   before_script:
-    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
+    - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
     - rustup component add clippy
     - cd portulock-keyserver
   needs: []

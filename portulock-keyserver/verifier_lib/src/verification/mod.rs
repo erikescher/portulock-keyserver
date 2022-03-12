@@ -19,7 +19,7 @@ use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
 use crate::utils_verifier::expiration::ExpirationConfig;
-use crate::verification::tokens::oidc_verification::{OIDCAuthChallenge, OidcVerifier};
+use crate::verification::sso::{AuthChallengeData, AuthSystem, VerifiedSSOClaims};
 use crate::verification::tokens::{
     EmailVerificationToken, NameVerificationToken, SignedEmailVerificationToken, SignedNameVerificationToken,
 };
@@ -57,22 +57,43 @@ pub async fn verify_email(
     trigger_certification_and_publishing(fpr, submitter_db, keystore).await
 }
 
+#[tracing::instrument]
+pub async fn verify_name(
+    name_token: SignedNameVerificationToken,
+    submitter_db: &SubmitterDBConn,
+    token_key: &TokenKey,
+    keystore: &(impl KeyStore + ?Sized),
+) -> Result<(), VerifierError> {
+    let name_token = name_token.verify(token_key)?;
+    let fpr = name_token.fpr.as_str();
+
+    store_verified_name(
+        submitter_db,
+        fpr,
+        name_token.name.as_str(),
+        NaiveDateTime::from_timestamp(name_token.exp as i64, 0),
+    )
+    .await?;
+
+    trigger_certification_and_publishing(fpr, submitter_db, keystore).await
+}
+
 pub async fn trigger_certification_and_publishing(
     fpr: &str,
     submitter_db: &SubmitterDBConn,
     keystore: &(impl KeyStore + ?Sized),
 ) -> Result<(), VerifierError> {
-    println!("Triggering Certification and Publishing: fpr={}", fpr);
+    info!("Triggering Certification and Publishing: fpr={}", fpr);
     let fpr = Fingerprint::from_hex(fpr).map_err(CustomError::from)?;
     let pending_cert = get_pending_cert(submitter_db, &fpr).await?;
     match pending_cert {
         None => {
-            println!("No pending Cert found!")
+            info!("No pending Cert found!")
         }
         Some(pending_cert) => {
-            println!("Pending Cert found: {:?}", pending_cert);
+            info!("Pending Cert found: {:?}", pending_cert);
             let approved_cert = filter_cert_by_approved_uids(submitter_db, pending_cert).await?;
-            println!("Found {} approved userids.", approved_cert.userids().len());
+            info!("Found {} approved userids.", approved_cert.userids().len());
             if approved_cert.userids().len() > 0 {
                 certify_and_publish_approved_cert(keystore, approved_cert.clone()).await?;
 
@@ -88,6 +109,7 @@ pub async fn trigger_certification_and_publishing(
     Ok(())
 }
 
+pub mod sso;
 pub mod tokens;
 
 #[derive(Debug)]
@@ -116,11 +138,16 @@ impl TokenKey {
 }
 
 pub struct VerificationConfig {
-    pub oidc_config: OpenIDConnectConfig,
+    pub sso_config: SSOConfig,
 }
 
-pub struct OpenIDConnectConfig {
-    pub entry: OpenIDConnectConfigEntry,
+pub struct SSOConfig {
+    pub entry: SSOConfigEntry,
+}
+
+pub enum SSOConfigEntry {
+    Oidc(OpenIDConnectConfigEntry),
+    Saml(SAMLConfigEntry),
 }
 
 pub struct OpenIDConnectConfigEntry {
@@ -130,12 +157,23 @@ pub struct OpenIDConnectConfigEntry {
     pub endpoint_url: String,
 }
 
+pub struct SAMLConfigEntry {
+    pub idp_url: String,
+    pub idp_metadata_url: String, // can likely make this optional and derive from idp_url
+    pub endpoint_url: String,
+    pub sp_entity_id: String, // can make this optional, which will use the sp_metadata_url
+    pub sp_certificate_pem: String,
+    pub sp_private_key_pem: String,
+    pub attribute_selectors_name: Vec<String>,
+    pub attribute_selectors_email: Vec<String>,
+}
+
 #[tracing::instrument]
 pub async fn verify_name_start(
     fpr: Fingerprint,
-    oidc_verifier: &OidcVerifier,
+    auth_system: &AuthSystem,
 ) -> Result<(String, AuthChallengeCookie), CustomError> {
-    let (auth_url, auth_challenge) = oidc_verifier.get_auth_url();
+    let (auth_url, auth_challenge) = auth_system.get_auth_url()?;
 
     let cookie_data = AuthChallengeCookie {
         auth_challenge,
@@ -145,90 +183,64 @@ pub async fn verify_name_start(
 }
 
 #[tracing::instrument]
-pub async fn verify_name_code(
-    state: String,
-    code: String,
-    oidc_verifier: &OidcVerifier,
-    auth_challenge_cookie: AuthChallengeCookie,
-    token_key: &TokenKey,
+fn claims_to_tokens(
+    claims: VerifiedSSOClaims,
     expiration_config: &ExpirationConfig,
-) -> Result<(SignedNameVerificationToken, Option<SignedEmailVerificationToken>), CustomError> {
-    let auth_challenge: OIDCAuthChallenge = auth_challenge_cookie.auth_challenge;
-    let fpr = auth_challenge_cookie.fpr;
-
-    if auth_challenge.get_state() != state.as_str() {
-        return Err(CustomError::String(
-            "Failed to validate OAuth State parameter!".to_string(),
-        ));
-    }
-
-    let claims = oidc_verifier
-        .verify_token_and_extract_claims(auth_challenge, code.as_str())
-        .await?;
-    info!("CLAIMS: {:#?}\nFingerprint: {}", claims, fpr);
-
-    let name_token = NameVerificationToken {
-        name: claims.name,
-        fpr: fpr.clone(),
-        exp: expiration_config.expiration_u64(),
-        iat: ExpirationConfig::current_time_u64(),
-        nbf: ExpirationConfig::current_time_u64() - 1,
-    };
-    let token = name_token.sign(token_key);
-    let email_token = match claims.verified_email {
-        None => None,
-        Some(email) => {
-            let email_token = EmailVerificationToken {
-                email,
-                fpr,
+    fpr: &str,
+    token_key: &TokenKey,
+) -> (Vec<SignedNameVerificationToken>, Vec<SignedEmailVerificationToken>) {
+    let name_tokens = claims
+        .names
+        .iter()
+        .map(|name| {
+            NameVerificationToken {
+                name: name.to_string(),
+                fpr: fpr.to_string(),
                 exp: expiration_config.expiration_u64(),
                 iat: ExpirationConfig::current_time_u64(),
                 nbf: ExpirationConfig::current_time_u64() - 1,
-            };
-            Some(email_token.sign(token_key))
-        }
-    };
+            }
+            .sign(token_key)
+        })
+        .collect();
+    let email_tokens = claims
+        .emails
+        .iter()
+        .map(|email| {
+            EmailVerificationToken {
+                email: email.to_string(),
+                fpr: fpr.to_string(),
+                exp: expiration_config.expiration_u64(),
+                iat: ExpirationConfig::current_time_u64(),
+                nbf: ExpirationConfig::current_time_u64() - 1,
+            }
+            .sign(token_key)
+        })
+        .collect();
 
-    Ok((token, email_token))
+    (name_tokens, email_tokens)
 }
 
 #[tracing::instrument]
-pub async fn verify_name_confirm(
-    name_token: SignedNameVerificationToken,
-    email_token: Option<SignedEmailVerificationToken>,
+pub async fn verify_name_auth_system(
+    auth_state: Option<String>,
+    auth_response: &str,
+    auth_challenge_cookie: AuthChallengeCookie,
+    auth_system: &AuthSystem,
     token_key: &TokenKey,
-    submitter_db: &SubmitterDBConn,
-    keystore: &(impl KeyStore + ?Sized),
-) -> Result<(), VerifierError> {
-    let name_token = name_token.verify(token_key)?;
-
-    if let Some(email_token) = email_token {
-        let email_token = email_token.verify(token_key)?;
-        store_verified_email(
-            submitter_db,
-            email_token.fpr.as_str(),
-            email_token.email.as_str(),
-            NaiveDateTime::from_timestamp(email_token.exp as i64, 0),
-        )
+    expiration_config: &ExpirationConfig,
+) -> Result<(Vec<SignedNameVerificationToken>, Vec<SignedEmailVerificationToken>), CustomError> {
+    let auth_challenge = auth_challenge_cookie.auth_challenge;
+    let fpr = auth_challenge_cookie.fpr;
+    let claims = auth_system
+        .verify_and_extract_claims(auth_challenge, auth_response, auth_state)
         .await?;
-        if name_token.fpr != email_token.fpr {
-            trigger_certification_and_publishing(email_token.fpr.as_str(), submitter_db, keystore).await?;
-        }
-    }
 
-    store_verified_name(
-        submitter_db,
-        name_token.fpr.as_str(),
-        name_token.name.as_str(),
-        NaiveDateTime::from_timestamp(name_token.exp as i64, 0),
-    )
-    .await?;
-
-    trigger_certification_and_publishing(name_token.fpr.as_str(), submitter_db, keystore).await
+    Ok(claims_to_tokens(claims, expiration_config, &fpr, token_key))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthChallengeCookie {
-    auth_challenge: OIDCAuthChallenge,
-    fpr: String,
+    auth_challenge: AuthChallengeData,
+    pub fpr: String,
 }

@@ -13,7 +13,7 @@ use std::{thread, time};
 
 use chrono::Duration;
 use num_traits::ToPrimitive;
-use rocket::config::{Table, Value};
+use rocket::config::{Array, Table, Value};
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
 use rocket_contrib::templates::Template;
@@ -27,7 +27,9 @@ use verifier_lib::management::random_string;
 use verifier_lib::submission::mailer::{SmtpConnectionSecurity, SmtpMailer};
 use verifier_lib::submission::SubmissionConfig;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
-use verifier_lib::verification::{OpenIDConnectConfig, OpenIDConnectConfigEntry, TokenKey, VerificationConfig};
+use verifier_lib::verification::{
+    OpenIDConnectConfigEntry, SAMLConfigEntry, SSOConfig, SSOConfigEntry, TokenKey, VerificationConfig,
+};
 use verifier_lib::DeletionConfig;
 
 use crate::holders::{ExternalURLHolder, InternalSecretHolder, KeyStoreHolder, MailerHolder};
@@ -51,10 +53,12 @@ fn main() {
                 submission_endpoint::submission,
                 verification_endpoint::verify_email,
                 verification_endpoint::verify_email_request,
-                verification_endpoint::verify_email_confirm,
                 verification_endpoint::verify_name_start,
-                verification_endpoint::verify_name_code,
-                verification_endpoint::verify_name_confirm,
+                verification_endpoint::verify_oidc_code,
+                verification_endpoint::verify_saml_acs,
+                verification_endpoint::verify_saml_metadata,
+                verification_endpoint::verify_saml_slo,
+                verification_endpoint::verify_confirm,
                 management_endpoint::delete_key,
                 management_endpoint::challenge_decrypt,
                 management_endpoint::challenge_decrypt_with_key,
@@ -129,24 +133,53 @@ fn main() {
             let rocket = rocket.manage(SubmissionConfig::new(allowed_domains, allowed_certifying_keys));
 
             let verification_config = VerificationConfig {
-                oidc_config: OpenIDConnectConfig {
-                    entry: OpenIDConnectConfigEntry {
-                        issuer_url: rocket.config().get_string("oidc_issuer_url").unwrap(),
-                        client_id: rocket.config().get_string("oidc_client_id").unwrap(),
-                        client_secret: match rocket.config().get_string("oidc_client_secret") {
-                            Ok(s) => Some(s),
-                            Err(_) => None,
-                        },
-                        endpoint_url: rocket.config().get_string("external_url").unwrap(),
+                sso_config: SSOConfig {
+                    entry: match rocket.config().get_str("sso_type").unwrap() {
+                        "oidc" => SSOConfigEntry::Oidc(OpenIDConnectConfigEntry {
+                            issuer_url: rocket.config().get_string("oidc_issuer_url").unwrap(),
+                            client_id: rocket.config().get_string("oidc_client_id").unwrap(),
+                            client_secret: match rocket.config().get_string("oidc_client_secret") {
+                                Ok(s) => Some(s),
+                                Err(_) => None,
+                            },
+                            endpoint_url: rocket.config().get_string("external_url").unwrap(),
+                        }),
+                        "saml" => {
+                            let attribute_selectors_name = rocket
+                                .config()
+                                .get_slice("saml_attribute_selectors_name")
+                                .unwrap_or(&Array::new())
+                                .iter()
+                                .map(|e| e.as_str().unwrap().to_string())
+                                .collect();
+                            let attribute_selectors_email = rocket
+                                .config()
+                                .get_slice("saml_attribute_selectors_email")
+                                .unwrap_or(&Array::new())
+                                .iter()
+                                .map(|e| e.as_str().unwrap().to_string())
+                                .collect();
+                            SSOConfigEntry::Saml(SAMLConfigEntry {
+                                idp_url: rocket.config().get_string("saml_idp_url").unwrap(),
+                                idp_metadata_url: rocket.config().get_string("saml_idp_metadata_url").unwrap(),
+                                endpoint_url: rocket.config().get_string("external_url").unwrap(),
+                                sp_entity_id: rocket.config().get_string("saml_sp_entity_id").unwrap(),
+                                sp_certificate_pem: rocket.config().get_string("saml_sp_certificate_pem").unwrap(),
+                                sp_private_key_pem: rocket.config().get_string("saml_sp_private_key_pem").unwrap(),
+                                attribute_selectors_name,
+                                attribute_selectors_email,
+                            })
+                        }
+                        other => panic!("Unsupported sso_type: {}! Supported types are: oidc, saml.", other),
                     },
                 },
             };
-            let oidc_verifier = AsyncHelper::new()
+            let auth_system = AsyncHelper::new()
                 .unwrap()
-                .wait_for(verifier_lib::create_verifier(&verification_config))
+                .wait_for(verifier_lib::create_auth_system(&verification_config.sso_config.entry))
                 .unwrap();
             let rocket = rocket.manage(verification_config);
-            let rocket = rocket.manage(oidc_verifier);
+            let rocket = rocket.manage(auth_system);
 
             let external_url = rocket.config().get_str("external_url").unwrap().to_string();
             let rocket = rocket.manage(ExternalURLHolder(external_url));

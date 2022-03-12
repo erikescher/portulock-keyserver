@@ -17,9 +17,11 @@ use sequoia_openpgp::Fingerprint;
 use shared::errors::CustomError;
 use shared::types::Email;
 use shared::utils::async_helper::AsyncHelper;
+use verifier_lib::errors::VerifierError;
+use verifier_lib::key_storage::KeyStore;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification;
-use verifier_lib::verification::tokens::oidc_verification::OidcVerifier;
+use verifier_lib::verification::sso::AuthSystem;
 use verifier_lib::verification::tokens::{SignedEmailVerificationToken, SignedNameVerificationToken};
 use verifier_lib::verification::{AuthChallengeCookie, TokenKey};
 
@@ -61,33 +63,10 @@ pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Templat
     let context: HashMap<&str, String, RandomState> = HashMap::from_iter([
         ("email", email_token.verify(token_key)?.email),
         ("fpr", email_token.verify(token_key)?.fpr),
-        ("confirm_url", "/verify/email_confirm".to_string()),
+        ("confirm_url", "/verify/confirm".to_string()),
         ("email_token", email_token.get_data().to_string()),
     ]);
     Ok(Template::render("verify_email", context))
-}
-
-#[derive(FromForm, Debug)]
-pub struct ConfirmEmailPayload {
-    email_token: String,
-}
-
-#[post("/verify/email_confirm", data = "<payload>")]
-#[tracing::instrument]
-pub fn verify_email_confirm(
-    payload: Form<ConfirmEmailPayload>,
-    submitter_db: SubmitterDBConn,
-    keystore: State<KeyStoreHolder>,
-    token_key: State<TokenKey>,
-) -> Result<String, CustomError> {
-    let keystore = keystore.inner().get_key_store();
-    let token = SignedEmailVerificationToken::from(payload.email_token.clone());
-    let token_key = token_key.inner();
-    AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(verification::verify_email(token, &submitter_db, token_key, &*keystore))?;
-
-    Ok("Email verified successfully!".to_string())
 }
 
 const COOKIE_KEY: &str = "auth_challenge";
@@ -96,18 +75,19 @@ const COOKIE_KEY: &str = "auth_challenge";
 #[tracing::instrument]
 pub fn verify_name_start(
     fpr: String,
-    oidc_verifier: State<OidcVerifier>,
+    auth_system: State<AuthSystem>,
     mut cookies: Cookies,
 ) -> Result<Redirect, CustomError> {
     let fpr = Fingerprint::from_str(fpr.as_str())?;
-    let oidc_verifier = oidc_verifier.inner();
+    let auth_system = auth_system.inner();
 
     let (auth_url, cookie_data) = AsyncHelper::new()
         .expect("Failed to create async runtime.")
-        .wait_for(verification::verify_name_start(fpr, oidc_verifier))?;
+        .wait_for(verification::verify_name_start(fpr, auth_system))?;
 
     let cookie = Cookie::build(COOKIE_KEY, serde_json::to_string(&cookie_data)?)
-        .same_site(SameSite::Lax)
+        .same_site(SameSite::None)
+        .secure(true)
         .finish();
     cookies.add_private(cookie);
 
@@ -116,10 +96,71 @@ pub fn verify_name_start(
 
 #[get("/verify/name_code?<state>&<code>")]
 #[tracing::instrument]
-pub fn verify_name_code(
+pub fn verify_oidc_code(
     state: String,
     code: String,
-    oidc_verifier: State<OidcVerifier>,
+    auth_system: State<AuthSystem>,
+    cookies: Cookies,
+    token_key: State<TokenKey>,
+    expiration_config: State<ExpirationConfig>,
+) -> Result<Template, CustomError> {
+    verify_name_auth_system(
+        Some(state),
+        code.as_str(),
+        auth_system,
+        cookies,
+        token_key,
+        expiration_config,
+    )
+}
+
+#[get("/verify/saml/metadata")]
+#[tracing::instrument]
+pub fn verify_saml_metadata(auth_system: State<AuthSystem>) -> Result<String, VerifierError> {
+    match auth_system.inner() {
+        AuthSystem::Saml(saml) => Ok(saml.get_metadata().to_string()),
+        AuthSystem::Oidc(_) => Err("SAML metadata requested for OIDC AuthSystem!".into()),
+    }
+}
+
+#[post("/verify/saml/slo")]
+#[tracing::instrument]
+pub fn verify_saml_slo() -> Result<String, VerifierError> {
+    Err("SAML Single Logout Service is not implemented!".into())
+}
+
+#[derive(FromForm, Debug)]
+pub struct AssertionConsumerServiceMessage {
+    #[form(field = "SAMLResponse")]
+    saml_response: String,
+    #[form(field = "RelayState")]
+    relay_state: Option<String>,
+}
+
+#[post("/verify/saml/acs", data = "<acs_message>")]
+#[tracing::instrument]
+pub fn verify_saml_acs(
+    acs_message: Form<AssertionConsumerServiceMessage>,
+    auth_system: State<AuthSystem>,
+    cookies: Cookies,
+    token_key: State<TokenKey>,
+    expiration_config: State<ExpirationConfig>,
+) -> Result<Template, CustomError> {
+    verify_name_auth_system(
+        acs_message.0.relay_state,
+        &acs_message.0.saml_response,
+        auth_system,
+        cookies,
+        token_key,
+        expiration_config,
+    )
+}
+
+#[tracing::instrument]
+fn verify_name_auth_system(
+    auth_state: Option<String>,
+    auth_response: &str,
+    auth_system: State<AuthSystem>,
     mut cookies: Cookies,
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
@@ -128,66 +169,137 @@ pub fn verify_name_code(
         .get_private(COOKIE_KEY)
         .ok_or("No auth_challenge cookie found!")?;
     let cookie_data: AuthChallengeCookie = serde_json::from_str(cookie.value())?;
-    let oidc_verifier = oidc_verifier.inner();
+    let fpr = cookie_data.fpr.clone();
+    let auth_system = auth_system.inner();
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
 
-    let (name_token, email_token) =
-        AsyncHelper::new()
-            .expect("Failed to create async runtime.")
-            .wait_for(verification::verify_name_code(
-                state,
-                code,
-                oidc_verifier,
-                cookie_data,
-                token_key,
-                expiration_config,
-            ))?;
+    let (name_tokens, email_tokens) = AsyncHelper::new().expect("Failed to create async runtime.").wait_for(
+        verification::verify_name_auth_system(
+            auth_state,
+            auth_response,
+            cookie_data,
+            auth_system,
+            token_key,
+            expiration_config,
+        ),
+    )?;
 
     cookies.remove_private(cookie);
 
-    let email_token = email_token.unwrap_or_else(|| SignedEmailVerificationToken::from("".to_string()));
+    let (names, emails, name_tokens_combined, email_tokens_combined) =
+        tokens_to_context(name_tokens, email_tokens, token_key)?;
 
-    let name_token_data = name_token.verify(token_key)?;
     let context: HashMap<&str, String, RandomState> = HashMap::from_iter([
-        ("name", name_token_data.name),
-        ("email", email_token.verify(token_key)?.email),
-        ("fpr", name_token_data.fpr),
-        ("confirm_url", "/verify/name_confirm".to_string()),
-        ("name_token", name_token.get_data().to_string()),
-        ("email_token", email_token.get_data().to_string()),
+        ("name", names),
+        ("email", emails),
+        ("fpr", fpr),
+        ("confirm_url", "/verify/confirm".to_string()),
+        ("name_token", name_tokens_combined),
+        ("email_token", email_tokens_combined),
     ]);
     Ok(Template::render("verify_name_code", context))
 }
 
+#[tracing::instrument]
+fn tokens_to_context(
+    name_tokens: Vec<SignedNameVerificationToken>,
+    email_tokens: Vec<SignedEmailVerificationToken>,
+    token_key: &TokenKey,
+) -> Result<(String, String, String, String), VerifierError> {
+    let names = name_tokens
+        .iter()
+        .flat_map(|name_token| name_token.verify(token_key))
+        .map(|t| t.name)
+        .collect();
+    let names = concat_strings(&names, ", ");
+
+    let mut name_tokens_combined = String::new();
+    for token in name_tokens {
+        name_tokens_combined += token.get_data();
+        name_tokens_combined += ":";
+    }
+    let name_tokens_combined = truncate_last_char(&name_tokens_combined);
+
+    let emails = email_tokens
+        .iter()
+        .flat_map(|email_token| email_token.verify(token_key))
+        .map(|t| t.email)
+        .collect();
+    let emails = concat_strings(&emails, ", ");
+
+    let mut email_tokens_combined = String::new();
+    for token in email_tokens {
+        email_tokens_combined += token.get_data();
+        email_tokens_combined += ":";
+    }
+    let email_tokens_combined = truncate_last_char(&email_tokens_combined);
+
+    Ok((names, emails, name_tokens_combined, email_tokens_combined))
+}
+
+fn truncate_last_char(string: &str) -> String {
+    let mut chars = string.chars();
+    chars.next_back(); // discard last character
+    chars.as_str().to_string()
+}
+
+fn concat_strings(strings: &Vec<String>, separator: &str) -> String {
+    let mut result = String::new();
+    for string in strings {
+        result += string;
+        result += separator;
+    }
+    for _ in separator.chars() {
+        result = truncate_last_char(&result);
+    }
+    result
+}
+
 #[derive(FromForm, Debug)]
-pub struct ConfirmNamePayload {
-    name_token: String,
+pub struct ConfirmPayload {
+    name_token: Option<String>,
     email_token: Option<String>,
 }
 
-#[post("/verify/name_confirm", data = "<payload>")]
+#[post("/verify/confirm", data = "<payload>")]
 #[tracing::instrument]
-pub fn verify_name_confirm(
-    payload: Form<ConfirmNamePayload>,
+pub fn verify_confirm(
+    payload: Form<ConfirmPayload>,
     submitter_db: SubmitterDBConn,
     keystore: State<'_, KeyStoreHolder>,
     token_key: State<TokenKey>,
 ) -> Result<String, CustomError> {
-    let keystore = keystore.inner().get_key_store();
-    let name_token = SignedNameVerificationToken::from(payload.name_token.clone());
-    let email_token = payload.email_token.clone().map(SignedEmailVerificationToken::from);
-    let token_key = token_key.inner();
-
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
-        .wait_for(verification::verify_name_confirm(
-            name_token,
-            email_token,
-            token_key,
+        .wait_for(verify_confirm_async(
+            payload.0,
             &submitter_db,
-            &*keystore,
-        ))?;
+            &*keystore.inner().get_key_store(),
+            token_key.inner(),
+        ))
+}
 
-    Ok("Name verified successfully!".to_string())
+#[tracing::instrument]
+async fn verify_confirm_async(
+    payload: ConfirmPayload,
+    submitter_db: &SubmitterDBConn,
+    keystore: &(impl KeyStore + ?Sized),
+    token_key: &TokenKey,
+) -> Result<String, CustomError> {
+    if let Some(name_tokens) = payload.name_token {
+        let name_tokens = name_tokens.split(':');
+        for name_token in name_tokens {
+            let name_token = SignedNameVerificationToken::from(name_token.to_string());
+            verification::verify_name(name_token, submitter_db, token_key, keystore).await?;
+        }
+    }
+    if let Some(email_tokens) = payload.email_token {
+        let email_tokens = email_tokens.split(':');
+        for email_token in email_tokens {
+            let email_token = SignedEmailVerificationToken::from(email_token.to_string());
+            verification::verify_email(email_token, submitter_db, token_key, keystore).await?;
+        }
+    }
+    Ok("Verified successfully.".into())
 }

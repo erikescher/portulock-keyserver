@@ -1,8 +1,8 @@
 # Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
 # SPDX-License-Identifier: GPL-3.0-only
 
-FROM rustlang/rust:nightly as rust_builder_base
-RUN apt update && apt install --yes clang libclang-dev llvm llvm-dev librust-clang-sys*
+FROM rustlang/rust@sha256:c61103d66375933e7ae58ff5979b2d91888dff44bcbf3265a17c9f92922b306c as rust_builder_base
+RUN apt update && apt install --yes clang libclang-dev llvm llvm-dev librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
 WORKDIR /build
 
 FROM rust_builder_base as rust_builder
@@ -13,7 +13,7 @@ FROM debian:buster as rust_runner
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV ROCKET_ADDRESS="0.0.0.0"
 ENV RUST_BACKTRACE="full"
-RUN apt update && apt install -y libssl1.1 libsqlite3-0 nettle-bin libmariadb3 git rustc cargo clang libclang-dev make pkg-config nettle-dev libssl-dev capnproto libsqlite3-dev
+RUN apt update && apt install -y libssl1.1 libsqlite3-0 nettle-bin libmariadb3 git rustc cargo clang libclang-dev make pkg-config nettle-dev libssl-dev capnproto libsqlite3-dev libxml2 openssl xmlsec1 libxmlsec1*
 WORKDIR /app
 
 FROM rust_runner as verifier

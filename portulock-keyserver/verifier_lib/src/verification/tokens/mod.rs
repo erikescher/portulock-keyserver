@@ -13,8 +13,6 @@ use crate::db::EmailVerificationChallenge;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::TokenKey;
 
-pub mod oidc_verification;
-
 #[derive(Debug)]
 pub struct SignedEmailVerificationToken {
     data: String,

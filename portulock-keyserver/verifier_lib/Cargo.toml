@@ -29,3 +29,5 @@ openidconnect = { version = "2.2.0", features = ["accept-rfc3339-timestamps"]}
 num-traits = "0.2.14"
 rusqlite = "0.25.3" # note: version conflicts with diesel and openpgp-ca-lib via shared dependency on libsqlite3-sys
 tracing = { version = "0.1", features = ["log"] }
+samael = { version = "0.0.8", features = ["xmlsec"], git = "https://github.com/erikescher/samael.git"}
+openssl = "0.10.38"

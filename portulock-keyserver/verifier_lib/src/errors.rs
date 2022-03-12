@@ -6,6 +6,9 @@
 use std::fmt::{Display, Formatter};
 
 use anyhow::anyhow;
+use openssl::error::ErrorStack;
+use reqwest::Error;
+use samael::metadata::de::DeError;
 use shared::errors::CustomError;
 use tracing::error;
 
@@ -64,6 +67,36 @@ impl From<VerifierError> for CustomError {
             VerifierError::CustomError(e) => e,
             VerifierError::String(s) => CustomError::str(s.as_str()),
         }
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for VerifierError {
+    fn from(e: Box<dyn serde::de::StdError>) -> Self {
+        Self::str(format!("std::error::Error: {:?}", e.as_ref()).as_str())
+    }
+}
+
+impl From<reqwest::Error> for VerifierError {
+    fn from(e: Error) -> Self {
+        VerifierError::anyhow(anyhow!(e))
+    }
+}
+
+impl From<DeError> for VerifierError {
+    fn from(e: DeError) -> Self {
+        VerifierError::anyhow(anyhow!(e))
+    }
+}
+
+impl From<ErrorStack> for VerifierError {
+    fn from(e: ErrorStack) -> Self {
+        VerifierError::anyhow(anyhow!(e))
+    }
+}
+
+impl From<samael::service_provider::ServiceProviderBuilderError> for VerifierError {
+    fn from(e: samael::service_provider::ServiceProviderBuilderError) -> Self {
+        VerifierError::anyhow(anyhow!(e))
     }
 }
 
