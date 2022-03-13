@@ -43,7 +43,11 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, Err
         .build()
         .map_err(Error::Reqwest)?;
 
+    println!("OIDC Backend Request: {:?}", request);
+
     let response = client.execute(request).await.map_err(Error::Reqwest)?;
+
+    println!("OIDC Backend Response: {:?}", response);
 
     Ok(HttpResponse {
         status_code: response.status(),
