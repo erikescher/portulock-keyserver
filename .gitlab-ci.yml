@@ -92,7 +92,7 @@ server_image_verifier:
   stage: images
   only:
     changes:
-      - "portulock-keyserver/**"
+      - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
   before_script:
@@ -110,7 +110,7 @@ server_image_aggregator:
   stage: images
   only:
     changes:
-      - "portulock-keyserver/**"
+      - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
   before_script:
