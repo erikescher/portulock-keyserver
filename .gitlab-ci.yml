@@ -1,6 +1,14 @@
 # Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
 # SPDX-License-Identifier: GPL-3.0-only
 
+variables:
+  # The "Description" parameter is not well documented, but it causes the variable to be prepopulated on
+  # the "Run Pipeline" page, and it displays the description.
+  TASK_NAME:
+    value: ""
+    description: "The task name to run on demand, please pick ONE from this list: audit,rebuild,deploy. Defaults to full pipeline if empty/unset."
+
+
 stages:
   - build
   - test
@@ -10,15 +18,17 @@ stages:
   - demo
 
 server_build:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: build
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
     - cd portulock-keyserver
-  only:
-    changes:
-      - "portulock-keyserver/**/*"
-      - ".gitlab-ci.yml"
   script:
     - cargo build --release
   artifacts:
@@ -29,20 +39,28 @@ server_build:
       - portulock-keyserver/target/debug/verifier
 
 server_test:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: test
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys*
     - cd portulock-keyserver
   needs: []
-  only:
-    changes:
-      - "portulock-keyserver/**/*"
-      - ".gitlab-ci.yml"
   script:
     - cargo test
 
 server_lint:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "portulock-keyserver/**/*"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: quality
   before_script:
@@ -50,51 +68,51 @@ server_lint:
     - rustup component add clippy
     - cd portulock-keyserver
   needs: []
-  only:
-    changes:
-      - "portulock-keyserver/**/*"
-      - ".gitlab-ci.yml"
   script:
     - cargo clippy -- -D warnings
 
 server_format:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "portulock-keyserver/**/*.rs"
+      - "portulock-keyserver/rustfmt.toml"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: quality
   before_script:
     - cd portulock-keyserver
   needs: []
-  only:
-    changes:
-      - "portulock-keyserver/**/*.rs"
-      - "portulock-keyserver/rustfmt.toml"
-      - ".gitlab-ci.yml"
   script:
     - cargo fmt -- --check
 
 server_audit:
+  rules:
+    - if: '$TASK_NAME == "audit"'
+    - changes:
+      - "portulock-keyserver/Cargo.lock"
+      - "portulock-keyserver/**/Cargo.toml"
+      - "portulock-keyserver/.cargo/audit.toml"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: audit
   before_script:
     - cargo install cargo-audit
     - cd portulock-keyserver
   needs: []
-  only:
-    changes:
-      - "portulock-keyserver/Cargo.lock"
-      - "portulock-keyserver/**/Cargo.toml"
-      - "portulock-keyserver/.cargo/audit.toml"
-      - ".gitlab-ci.yml"
   script:
     - cargo audit
 
 server_image_verifier:
-  image: docker
-  stage: images
-  only:
-    changes:
+  rules:
+    - if: '$TASK_NAME == "rebuild"'
+    - changes:
       - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
+  image: docker
+  stage: images
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -106,13 +124,14 @@ server_image_verifier:
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
 
 server_image_aggregator:
-  image: docker
-  stage: images
-  only:
-    changes:
+  rules:
+    - if: '$TASK_NAME == "rebuild"'
+    - changes:
       - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
+  image: docker
+  stage: images
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -124,6 +143,13 @@ server_image_aggregator:
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
 
 wasm_build:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "keyserver-ui/**/*"
+      - "openpgp-trustsign-wasm/**/*"
+      - ".gitlab-ci.yml"
   image: rust
   stage: build
   before_script:
@@ -134,69 +160,71 @@ wasm_build:
   script:
     - wasm-pack build
   needs: []
-  only:
-    changes:
-      - "keyserver-ui/**/*"
-      - "openpgp-trustsign-wasm/**/*"
-      - ".gitlab-ci.yml"
   artifacts:
     paths:
       - openpgp-trustsign-wasm/pkg
 
 wasm_lint:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "openpgp-trustsign-wasm/**/*"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: quality
   before_script:
     - rustup component add clippy
     - cd openpgp-trustsign-wasm
   needs: []
-  only:
-    changes:
-      - "openpgp-trustsign-wasm/**/*"
-      - ".gitlab-ci.yml"
   script:
     - cargo clippy -- -D warnings
 
 wasm_format:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
+      - "openpgp-trustsign-wasm/**/*.rs"
+      - "openpgp-trustsign-wasm/rustfmt.toml"
+      - ".gitlab-ci.yml"
   image: rustlang/rust:nightly
   stage: quality
   before_script:
     - rustup component add rustfmt
     - cd openpgp-trustsign-wasm
   needs: []
-  only:
-    changes:
-      - "openpgp-trustsign-wasm/**/*.rs"
-      - "openpgp-trustsign-wasm/rustfmt.toml"
-      - ".gitlab-ci.yml"
   script:
     - cargo fmt -- --check
 
 wasm_audit:
+  rules:
+    - if: '$TASK_NAME == "audit"'
+    - changes:
+      - "openpgp-trustsign-wasm/Cargo.lock"
+      - "openpgp-trustsign-wasm/**/Cargo.toml"
+      - "openpgp-trustsign-wasm/.cargo/audit.toml"
   image: rustlang/rust:nightly
   stage: audit
   before_script:
     - cargo install cargo-audit
     - cd openpgp-trustsign-wasm
-  only:
-    changes:
-      - "openpgp-trustsign-wasm/Cargo.lock"
-      - "openpgp-trustsign-wasm/**/Cargo.toml"
-      - "openpgp-trustsign-wasm/.cargo/audit.toml"
   script:
     - cargo audit
 
 ui_build:
-  image: node:lts
-  stage: build
-  before_script:
-    - cd keyserver-ui
-  only:
-    changes:
+  rules:
+    - if: $TASK_NAME
+      when: never
+    - changes:
       - "keyserver-ui/package.json"
       - "keyserver-ui/package-lock.json"
       - "keyserver-ui/**/*"
       - ".gitlab-ci.yml"
+  image: node:lts
+  stage: build
+  before_script:
+    - cd keyserver-ui
   needs:
     - wasm_build
   script:
@@ -208,29 +236,31 @@ ui_build:
 
 
 ui_audit:
+  rules:
+    - if: '$TASK_NAME == "audit"'
+    - changes:
+      - "keyserver-ui/package.json"
+      - "keyserver-ui/package-lock.json"
+      - ".gitlab-ci.yml"
   image: node:lts
   stage: audit
   before_script:
     - cd keyserver-ui
   needs: []
-  only:
-    changes:
-      - "keyserver-ui/package.json"
-      - "keyserver-ui/package-lock.json"
-      - ".gitlab-ci.yml"
   script:
     - npm audit --production
 
 reverse_proxy_image:
-  image: docker
-  stage: images
-  only:
-    changes:
+  rules:
+    - if: '$TASK_NAME == "rebuild"'
+    - changes:
       - "reverse-proxy/**"
       - "keyserver-ui/**"
       - "openpgp-trustsign-wasm/**"
       - ".gitlab-ci.yml"
       - "Dockerfile"
+  image: docker
+  stage: images
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -243,10 +273,10 @@ reverse_proxy_image:
   needs: []
 
 deploy_demo:
+  rules:
+    - if: '$TASK_NAME == "deploy"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
   stage: demo
-  only:
-    refs:
-      - master
   inherit:
     variables: false
   trigger: portulock/portulock-demo
