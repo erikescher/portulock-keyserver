@@ -146,7 +146,7 @@ keyservers = ["hkps://keys.openpgp.org"]
 
 ### Generating the CA Certificate
 When the verifier starts for the first time for a specific domain, it generates a CA
-certificate automatically. The CA certificate will use the UserID `OpenPGP-CA <openpgp -ca@<domain>`,
+certificate automatically. The CA certificate will use the UserID `OpenPGP-CA <openpgp-ca@<domain>`,
 to customize this, in particular to change the name from “OpenPGP-CA”
 to the name of the organization. The OpenPGP-CA CLI can be used to generate the
 certificate before starting the service.
@@ -224,7 +224,7 @@ All commits and tags in this repository are signed by the author to ensure code 
 ### Compiling
 This project uses Docker and Docker Compose to simplify installation and dependency management. 
 
-The services can be built from source by running `docker -compose build`. 
+The services can be built from source by running `docker-compose build`. 
 
 This fetches the dependencies needed to compile and run the project, compiles the rust binaries 
 from source and builds docker containers, that will be executed later.
@@ -236,8 +236,7 @@ starting and stopping them as needed to achieve the defined configuration.
 
 ### Scaling Horizontally
 Docker Compose allows the administrator to start multiple instances of the same ser-
-vice using the `--scale` parameter when starting such as `-–scale aggregator=5 -–scale
-nginx=10`. 
+vice using the `--scale` parameter when starting such as `-–scale aggregator=5 -–scale nginx=10`. 
 
 Load will be balanced between these instances using the round-robin system of the docker internal DNS service.
 Additional tools such as Docker Swarm or Kubernetes could be used to deploy the containers if required.
