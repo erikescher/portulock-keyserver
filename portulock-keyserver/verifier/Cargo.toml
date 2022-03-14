@@ -25,6 +25,6 @@ openpgp-ca-lib = "0.10.1" # GPL
 lettre = "0.10.0-rc.3"
 base64 = "0.13.0"
 urlencoding = "2.1.0"
-openidconnect = "2.1.0"
+openidconnect = { version = "2.2.0", features = ["accept-rfc3339-timestamps"]}
 num-traits = "0.2.14"
 rusqlite = "0.25.3" # note: version conflicts with diesel and openpgp-ca-lib via shared dependency on libsqlite3-sys
