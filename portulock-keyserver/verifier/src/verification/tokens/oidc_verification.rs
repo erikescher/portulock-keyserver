@@ -121,7 +121,7 @@ impl OidcVerifier {
             .set_pkce_verifier(auth_challenge.pkce_verifier)
             .request_async(async_http_client)
             .await
-            .map_err(|e| CustomError::String(format!("{:#?}", e)))?;
+            .map_err(|e| CustomError::String(format!("{:?}", e)))?;
 
         println!("OIDC ID Token: {:?}", token_response.id_token());
 
@@ -143,9 +143,9 @@ impl OidcVerifier {
             if let Some(expected_access_token_hash) = claims.access_token_hash() {
                 let actual_access_token_hash = AccessTokenHash::from_token(
                     token_response.access_token(),
-                    &id_token.signing_alg().map_err(|e| CustomError::String(e.to_string()))?,
+                    &id_token.signing_alg().map_err(|e| CustomError::String(format!("{:?}", e)))?,
                 )
-                .map_err(|e| CustomError::String(e.to_string()))?;
+                .map_err(|e| CustomError::String(format!("{:?}", e)))?;
                 if actual_access_token_hash != *expected_access_token_hash {
                     return Err(CustomError::String("Invalid access token".to_string()));
                 }
@@ -154,11 +154,13 @@ impl OidcVerifier {
             let userinfo_request = self
                 .client
                 .user_info(token_response.access_token().to_owned(), Some(claims.subject().clone()));
+            // TODO log the error even if we are ignoring it.
             if let Ok(request) = userinfo_request {
                 if let Ok(claims) = request.request_async(async_http_client).await {
                     println!("OIDC Claims from UserInfo: {:?}", claims);
                     claims_in_progress.add_userinfo_claims(claims)
                 }
+                // TODO log the error even if we are ignoring it.
             }
         }
 
