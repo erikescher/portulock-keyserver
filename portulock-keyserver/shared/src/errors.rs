@@ -4,8 +4,8 @@
  */
 
 use std::fmt::{Display, Formatter};
-use anyhow::anyhow;
 
+use anyhow::anyhow;
 use diesel;
 use tracing::{error, info};
 

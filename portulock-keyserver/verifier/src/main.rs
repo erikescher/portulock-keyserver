@@ -31,7 +31,6 @@ pub use shared::types;
 pub use shared::utils;
 use shared::utils::armor;
 use submission::SubmissionConfig;
-use tracing_log::LogTracer;
 use utils::async_helper::AsyncHelper;
 
 use crate::db::perform_migrations;
@@ -70,7 +69,6 @@ impl Debug for SubmitterDBConn {
 
 #[tracing::instrument]
 fn main() {
-    LogTracer::init().expect("Failed to initialize system for converting logs to trace events");
     tracing_subscriber::fmt::init();
 
     let rocket = rocket::ignite()
