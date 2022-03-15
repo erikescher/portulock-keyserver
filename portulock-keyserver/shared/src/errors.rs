@@ -4,12 +4,26 @@
  */
 
 use std::fmt::{Display, Formatter};
+use anyhow::anyhow;
 
 use diesel;
+use tracing::{error, info};
 
 #[derive(Debug, Clone)]
 pub enum CustomError {
     String(String),
+}
+
+impl CustomError {
+    pub fn anyhow(error: anyhow::Error) -> Self {
+        let string = format!("{:?}", error);
+        error!("Created CustomError from anyhow::Error: \n{}", string);
+        Self::String(string)
+    }
+    pub fn str(string: &str) -> Self {
+        error!("Created CustomError from String: \n{}", string);
+        Self::String(string.to_string())
+    }
 }
 
 impl Display for CustomError {
@@ -24,55 +38,55 @@ impl Display for CustomError {
 
 impl From<rusqlite::Error> for CustomError {
     fn from(e: rusqlite::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<diesel::result::Error> for CustomError {
     fn from(e: diesel::result::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<serde_json::Error> for CustomError {
     fn from(e: serde_json::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<reqwest::Error> for CustomError {
     fn from(e: reqwest::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<anyhow::Error> for CustomError {
     fn from(e: anyhow::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<&str> for CustomError {
     fn from(e: &str) -> Self {
-        Self::String(e.to_string())
+        CustomError::str(e)
     }
 }
 
 impl From<jsonwebtoken::errors::Error> for CustomError {
     fn from(e: jsonwebtoken::errors::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<std::io::Error> for CustomError {
     fn from(e: std::io::Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
 impl From<std::string::FromUtf8Error> for CustomError {
     fn from(e: std::string::FromUtf8Error) -> Self {
-        Self::String(e.to_string())
+        CustomError::anyhow(anyhow!(e))
     }
 }
 
@@ -83,7 +97,7 @@ const INTERNAL_SERVER_ERROR: rocket::http::Status = rocket::http::Status {
 
 impl<'r> rocket::response::Responder<'r> for CustomError {
     fn respond_to(self, request: &rocket::request::Request) -> Result<rocket::Response<'r>, rocket::http::Status> {
-        println!("ERROR_RESPONSE: {}", self);
+        info!("ERROR_RESPONSE: {}", self);
         let responder = match self {
             //CustomError::String(message) => BadRequest(Some(message)),
             CustomError::String(message) => {

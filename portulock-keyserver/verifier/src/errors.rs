@@ -4,6 +4,8 @@
  */
 
 use std::fmt::{Display, Formatter};
+use anyhow::anyhow;
+use tracing::error;
 
 use shared::errors::CustomError;
 
@@ -11,6 +13,22 @@ use shared::errors::CustomError;
 pub enum VerifierError {
     CustomError(CustomError),
     String(String),
+}
+
+impl VerifierError {
+    fn anyhow(error: anyhow::Error) -> Self {
+        let string = format!("{:?}", error);
+        error!("Created VerifierError from anyhow::Error: \n{}", string);
+        Self::String(string)
+    }
+    fn str(string: &str) -> Self {
+        error!("Created VerifierError from String: \n{}", string);
+        Self::String(string.to_string())
+    }
+    fn custom(error: CustomError) -> Self {
+        error!("Created VerifierError from CustomError: \n{}", error);
+        Self::CustomError(error)
+    }
 }
 
 impl Display for VerifierError {
@@ -24,60 +42,63 @@ impl Display for VerifierError {
 
 impl From<&str> for VerifierError {
     fn from(s: &str) -> Self {
-        Self::String(s.to_string())
+        VerifierError::str(s)
     }
 }
 
 impl From<String> for VerifierError {
     fn from(s: String) -> Self {
-        Self::String(s)
+        VerifierError::str(s.as_str())
     }
 }
 
 impl From<CustomError> for VerifierError {
     fn from(c: CustomError) -> Self {
-        Self::CustomError(c)
+        VerifierError::custom(c)
     }
 }
 
 impl From<VerifierError> for CustomError {
     fn from(v: VerifierError) -> Self {
-        CustomError::String(v.to_string())
+        match v {
+            VerifierError::CustomError(e) => e,
+            VerifierError::String(s) => CustomError::str(s.as_str())
+        }
     }
 }
 
 impl From<lettre::transport::smtp::Error> for VerifierError {
     fn from(e: lettre::transport::smtp::Error) -> Self {
-        Self::String(e.to_string())
+        VerifierError::anyhow(anyhow!(e))
     }
 }
 
 impl From<lettre::error::Error> for VerifierError {
     fn from(e: lettre::error::Error) -> Self {
-        Self::String(e.to_string())
+        VerifierError::anyhow(anyhow!(e))
     }
 }
 
 impl From<lettre::address::AddressError> for VerifierError {
     fn from(e: lettre::address::AddressError) -> Self {
-        Self::String(e.to_string())
+        VerifierError::anyhow(anyhow!(e))
     }
 }
 
 impl From<diesel::result::Error> for VerifierError {
     fn from(e: diesel::result::Error) -> Self {
-        Self::String(e.to_string())
+        VerifierError::anyhow(anyhow!(e))
     }
 }
 
 impl From<rocket::http::uri::Error<'_>> for VerifierError {
     fn from(e: rocket::http::uri::Error) -> Self {
-        Self::String(e.to_string())
+        VerifierError::str(format!("{:?}", e).as_str())
     }
 }
 
 impl From<openidconnect::url::ParseError> for VerifierError {
     fn from(e: openidconnect::url::ParseError) -> Self {
-        Self::String(e.to_string())
+        VerifierError::anyhow(anyhow!(e))
     }
 }

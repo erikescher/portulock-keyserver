@@ -17,6 +17,7 @@ use openidconnect::{OAuth2TokenResponse, TokenResponse};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use tracing::{info, trace};
 use shared::errors::CustomError;
 
 use crate::errors::VerifierError;
@@ -44,7 +45,7 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, Err
         .build()
         .map_err(Error::Reqwest)?;
 
-    println!("OIDC Backend Request: {:?}", request);
+    trace!("OIDC Backend Request: {:?}", request);
 
     let response = client.execute(request).await.map_err(Error::Reqwest)?;
 
@@ -53,7 +54,7 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, Err
         headers: response.headers().to_owned(),
         body: response.bytes().await.map_err(Error::Reqwest)?.to_vec(),
     };
-    println!(
+    trace!(
         "OIDC Backend Response:\n status:{}\n headers: {:#?}\n body_as_text: {}",
         response.status_code,
         response.headers,
@@ -96,7 +97,7 @@ impl OidcVerifier {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
-        println!(
+        info!(
             "OIDC Authentication Challenge:\n auth_url: {}\n nonce: {}",
             auth_url,
             nonce.secret()
@@ -110,8 +111,8 @@ impl OidcVerifier {
         auth_challenge: OIDCAuthChallenge,
         authorization_code: &str,
     ) -> Result<VerifiedOpenIDConnectClaims, CustomError> {
-        println!(
-            "OIDC Authentication Code:\n code: {}\n nonce: {}",
+        info!(
+            "OIDC Authentication Code:\n code: {}\n nonce: {}", // TODO mask code in logs
             authorization_code,
             auth_challenge.nonce.secret()
         );
@@ -124,7 +125,7 @@ impl OidcVerifier {
             .await
             .map_err(|e| CustomError::String(format!("{:?}", e)))?;
 
-        println!("OIDC ID Token: {:?}", token_response.id_token());
+        info!("OIDC ID Token: {:?}", token_response.id_token()); // TODO strip signature from log
 
         let id_token = token_response
             .id_token()
@@ -134,7 +135,7 @@ impl OidcVerifier {
             .claims(&self.client.id_token_verifier(), &auth_challenge.nonce)
             .map_err(|e| CustomError::String(e.to_string()))?;
 
-        println!("OIDC Claims from Token: {:?}", claims);
+        info!("OIDC Claims from Token: {:?}", claims);
 
         let mut claims_in_progress = OpenIDConnectClaimsInProgress::from(claims);
         if !claims_in_progress.check_complete() {
@@ -158,7 +159,7 @@ impl OidcVerifier {
             // TODO log the error even if we are ignoring it.
             if let Ok(request) = userinfo_request {
                 if let Ok(claims) = request.request_async(async_http_client).await {
-                    println!("OIDC Claims from UserInfo: {:?}", claims);
+                    info!("OIDC Claims from UserInfo: {:?}", claims);
                     claims_in_progress.add_userinfo_claims(claims)
                 }
                 // TODO log the error even if we are ignoring it.

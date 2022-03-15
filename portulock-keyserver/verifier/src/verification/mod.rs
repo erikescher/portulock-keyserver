@@ -8,6 +8,7 @@ use chrono::NaiveDateTime;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use shared::errors::CustomError;
 
 use crate::db::{
@@ -162,7 +163,7 @@ pub async fn verify_name_code(
     let claims = oidc_verifier
         .verify_token_and_extract_claims(auth_challenge, code.as_str())
         .await?;
-    println!("CLAIMS: {:#?}\nFingerprint: {}", claims, fpr);
+    info!("CLAIMS: {:#?}\nFingerprint: {}", claims, fpr);
 
     let name_token = NameVerificationToken {
         name: claims.name,

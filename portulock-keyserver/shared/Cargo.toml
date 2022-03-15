@@ -25,3 +25,4 @@ lettre = "0.10.0-rc.3"
 openidconnect = "2.1.0"
 diesel = { version = "1", features = ["sqlite", "mysql", "chrono"]}
 rusqlite = "0.25.3" # note: version conflicts with diesel and openpgp-ca-lib via shared dependency on libsqlite3-sys
+tracing = "0.1"
