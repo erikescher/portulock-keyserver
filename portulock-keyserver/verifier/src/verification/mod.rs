@@ -8,8 +8,8 @@ use chrono::NaiveDateTime;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use shared::errors::CustomError;
+use tracing::info;
 
 use crate::db::{
     get_pending_cert, get_stored_revocations, store_verified_email, store_verified_name, EmailVerificationChallenge,
@@ -25,6 +25,7 @@ use crate::verification::tokens::{
 };
 use crate::SubmitterDBConn;
 
+#[tracing::instrument]
 pub async fn verify_email_request(
     fpr: &Fingerprint,
     email: &Email,
@@ -37,6 +38,7 @@ pub async fn verify_email_request(
     mailer.send_signed_email_challenge(&challenge, email).await
 }
 
+#[tracing::instrument]
 pub async fn verify_email(
     email_token: SignedEmailVerificationToken,
     submitter_db: &SubmitterDBConn,

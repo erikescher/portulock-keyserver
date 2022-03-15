@@ -18,6 +18,7 @@ use crate::SubmitterDBConn;
 mod internal_submission;
 mod mailer;
 
+#[derive(Debug)]
 pub struct SubmissionConfig {
     allowed_domains: Vec<String>,
     additional_allowed_certifying_keys: Vec<Cert>,
@@ -40,6 +41,7 @@ impl SubmissionConfig {
     }
 }
 
+#[tracing::instrument]
 pub async fn submit_keys(
     submitter_db: &SubmitterDBConn,
     mailer: &dyn Mailer,

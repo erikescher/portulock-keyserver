@@ -28,16 +28,19 @@ impl MultiOpenPGPCALib {
         Self { keystores }
     }
 
+    #[tracing::instrument]
     fn get_keystore_for_domain(&self, domain: &str) -> Result<&OpenPGPCALib, CustomError> {
         self.keystores
             .get(domain)
             .ok_or_else(|| "No keystore found for this domain!".into())
     }
 
+    #[tracing::instrument]
     fn get_all_keystores(&self) -> Vec<&OpenPGPCALib> {
         self.keystores.values().collect()
     }
 
+    #[tracing::instrument]
     pub fn perform_maintenance(&self) -> Result<(), CustomError> {
         for keystore in self.get_all_keystores() {
             keystore.perform_maintenance()?;
@@ -48,6 +51,7 @@ impl MultiOpenPGPCALib {
 
 #[async_trait]
 impl KeyStore for &MultiOpenPGPCALib {
+    #[tracing::instrument]
     async fn store(&self, cert: &Cert) -> Result<(), CustomError> {
         for (domain, cert) in split_cert_by_domain(cert) {
             self.get_keystore_for_domain(domain.as_str())?.store(&cert).await?;
@@ -55,6 +59,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError> {
         let parsed_email = Email::parse(email)?;
         let keystore = self.get_keystore_for_domain(parsed_email.get_domain())?;
@@ -62,6 +67,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         keystore.list_by_email(email).await
     }
 
+    #[tracing::instrument]
     async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
         let mut certs = vec![];
         for keystore in self.get_all_keystores() {
@@ -74,6 +80,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         Ok(certs.first().cloned())
     }
 
+    #[tracing::instrument]
     async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
         let mut at_least_one_stopped = false;
         for keystore in self.get_all_keystores() {
@@ -88,6 +95,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         }
     }
 
+    #[tracing::instrument]
     async fn delete(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
         for keystore in self.get_all_keystores() {
             keystore.delete(fpr).await.unwrap_or(());
@@ -99,6 +107,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         true
     }
 
+    #[tracing::instrument]
     async fn store_revocations_without_publishing(
         &self,
         cert: &Cert,
@@ -112,6 +121,7 @@ impl KeyStore for &MultiOpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, CustomError> {
         let mut stored_revocations = vec![];
         for keystore in self.get_all_keystores() {
@@ -124,6 +134,7 @@ impl KeyStore for &MultiOpenPGPCALib {
     }
 }
 
+#[tracing::instrument]
 fn split_cert_by_domain(cert: &Cert) -> HashMap<String, Cert> {
     let mut map: HashMap<String, Vec<Cert>> = HashMap::new();
     for cert_with_single_uid in CertWithSingleUID::iterate_over_cert(cert) {

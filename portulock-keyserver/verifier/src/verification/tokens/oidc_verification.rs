@@ -17,8 +17,8 @@ use openidconnect::{OAuth2TokenResponse, TokenResponse};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use tracing::{info, trace};
 use shared::errors::CustomError;
+use tracing::{info, trace};
 
 use crate::errors::VerifierError;
 
@@ -27,6 +27,7 @@ pub struct OidcVerifier {
     client: CoreClient,
 }
 
+#[tracing::instrument]
 pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, Error<reqwest::Error>> {
     let client = reqwest::ClientBuilder::new()
         .redirect(reqwest::redirect::Policy::none())
@@ -64,6 +65,7 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, Err
 }
 
 impl OidcVerifier {
+    #[tracing::instrument]
     pub async fn new(
         issuer_url: &str,
         client_id: &str,
@@ -83,6 +85,7 @@ impl OidcVerifier {
         Ok(Self { client })
     }
 
+    #[tracing::instrument]
     pub fn get_auth_url(&self) -> (Url, OIDCAuthChallenge) {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, csrf_token, nonce) = self
@@ -106,6 +109,7 @@ impl OidcVerifier {
         (auth_url, OIDCAuthChallenge::new(csrf_token, nonce, pkce_verifier))
     }
 
+    #[tracing::instrument]
     pub async fn verify_token_and_extract_claims(
         &self,
         auth_challenge: OIDCAuthChallenge,
@@ -145,7 +149,9 @@ impl OidcVerifier {
             if let Some(expected_access_token_hash) = claims.access_token_hash() {
                 let actual_access_token_hash = AccessTokenHash::from_token(
                     token_response.access_token(),
-                    &id_token.signing_alg().map_err(|e| CustomError::String(format!("{:?}", e)))?,
+                    &id_token
+                        .signing_alg()
+                        .map_err(|e| CustomError::String(format!("{:?}", e)))?,
                 )
                 .map_err(|e| CustomError::String(format!("{:?}", e)))?;
                 if actual_access_token_hash != *expected_access_token_hash {

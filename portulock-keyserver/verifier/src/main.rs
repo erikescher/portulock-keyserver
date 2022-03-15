@@ -15,8 +15,8 @@ extern crate rocket;
 extern crate rocket_contrib;
 
 use std::collections::HashMap;
-use std::{thread, time};
 use std::fmt::{Debug, Formatter};
+use std::{thread, time};
 
 use chrono::Duration;
 use num_traits::ToPrimitive;
@@ -24,7 +24,6 @@ use rocket::config::{Table, Value};
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
 use rocket_contrib::templates::Template;
-use tracing_log::LogTracer;
 pub use shared::certification;
 pub use shared::filtering;
 pub use shared::lookup;
@@ -32,6 +31,7 @@ pub use shared::types;
 pub use shared::utils;
 use shared::utils::armor;
 use submission::SubmissionConfig;
+use tracing_log::LogTracer;
 use utils::async_helper::AsyncHelper;
 
 use crate::db::perform_migrations;
@@ -234,6 +234,7 @@ fn main() {
     rocket.launch();
 }
 
+#[derive(Debug)]
 pub struct ExternalURLHolder(String);
 
 #[derive(Debug)]
@@ -242,8 +243,10 @@ pub enum KeyStoreHolder {
     MultiOpenPGPCALib(MultiOpenPGPCALib),
 }
 
+#[derive(Debug)] // TODO do not print secret to logs
 pub struct InternalSecretHolder(String);
 
+#[derive(Debug)]
 pub enum DeletionConfig {
     Always(),
     Never(),
@@ -258,6 +261,7 @@ impl KeyStoreHolder {
     }
 }
 
+#[derive(Debug)]
 pub enum MailerHolder {
     NoopMailer(),
     SmtpMailer(SmtpMailer),

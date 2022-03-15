@@ -9,7 +9,7 @@ use sequoia_openpgp::packet::UserID;
 
 use crate::errors::CustomError;
 
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct Email {
     localpart: String,
     domain: String,

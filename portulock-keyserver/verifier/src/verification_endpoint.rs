@@ -25,6 +25,7 @@ use crate::verification::{AuthChallengeCookie, TokenKey};
 use crate::{verification, KeyStoreHolder, MailerHolder, SubmitterDBConn};
 
 #[get("/verify/email_request?<fpr>&<email>")]
+#[tracing::instrument]
 pub fn verify_email_request(
     fpr: String,
     email: String,
@@ -50,6 +51,7 @@ pub fn verify_email_request(
 }
 
 #[get("/verify/email?<token>")]
+#[tracing::instrument]
 pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Template, CustomError> {
     let email_token = SignedEmailVerificationToken::from(token);
     let token_key = token_key.inner();
@@ -63,12 +65,13 @@ pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Templat
     Ok(Template::render("verify_email", context))
 }
 
-#[derive(FromForm)]
+#[derive(FromForm, Debug)]
 pub struct ConfirmEmailPayload {
     email_token: String,
 }
 
 #[post("/verify/email_confirm", data = "<payload>")]
+#[tracing::instrument]
 pub fn verify_email_confirm(
     payload: Form<ConfirmEmailPayload>,
     submitter_db: SubmitterDBConn,

@@ -14,6 +14,7 @@ use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
 use serde::Serialize;
 use shared::utils::armor::armor_signature;
+use tracing::info;
 
 use crate::certs::CertWithSingleUID;
 use crate::db::revocations::PendingRevocation;
@@ -73,6 +74,7 @@ impl EmailVerificationChallenge {
     }
 }
 
+#[tracing::instrument]
 pub fn create_verification_challenges(cert: Cert) -> Vec<VerificationChallenge> {
     let mut challenge_holder = ChallengeHolder::new(cert.fingerprint().to_hex().as_str());
     for cert_holder in CertWithSingleUID::iterate_over_cert(&cert) {
@@ -93,6 +95,7 @@ pub fn create_verification_challenges(cert: Cert) -> Vec<VerificationChallenge> 
     challenge_holder.into()
 }
 
+#[tracing::instrument]
 pub async fn store_uids_pending_verification(
     submitter_db: &SubmitterDBConn,
     expiration_config: &ExpirationConfig,
@@ -113,6 +116,7 @@ pub async fn store_uids_pending_verification(
     Ok(())
 }
 
+#[tracing::instrument]
 pub async fn store_pending_revocation(
     submitter_db: &SubmitterDBConn,
     expiration_config: &ExpirationConfig,
@@ -127,6 +131,7 @@ pub async fn store_pending_revocation(
     )
 }
 
+#[tracing::instrument]
 pub async fn get_stored_revocations(
     submitter_db: &SubmitterDBConn,
     fpr: &Fingerprint,
@@ -134,6 +139,7 @@ pub async fn get_stored_revocations(
     PendingRevocation::get(&*submitter_db, fpr.to_hex().as_str())
 }
 
+#[tracing::instrument]
 pub async fn perform_maintenance(submitter_db: &SubmitterDBConn) -> Result<(), diesel::result::Error> {
     maintenance_delete_verified_names(&*submitter_db).await?;
     maintenance_delete_verified_emails(&*submitter_db).await?;
@@ -179,6 +185,7 @@ async fn maintenance_delete_pending_uids(connection: &SqliteConnection) -> Resul
     diesel::delete(pending_uids.filter(exp.eq(current_timestamp))).execute(connection)
 }
 
+#[tracing::instrument]
 pub async fn delete_data_for_fingerprint(
     fpr: &Fingerprint,
     submitter_db: &SubmitterDBConn,
@@ -236,6 +243,7 @@ pub async fn store_verified_email(
     VerifiedEmailEntry::new(fpr, email, exp.timestamp()).store(&*submitter_db)
 }
 
+#[tracing::instrument]
 pub async fn store_verified_name(
     submitter_db: &SubmitterDBConn,
     fpr: &str,
@@ -245,6 +253,7 @@ pub async fn store_verified_name(
     VerifiedNameEntry::new(fpr, name, exp.timestamp()).store(&*submitter_db)
 }
 
+#[tracing::instrument]
 pub async fn get_pending_cert(
     submitter_db: &SubmitterDBConn,
     fpr: &Fingerprint,
@@ -268,6 +277,7 @@ pub async fn get_pending_cert(
     Ok(merge_certs(certs).into_iter().next())
 }
 
+#[tracing::instrument]
 pub async fn get_pending_certs_by_email(
     submitter_db: &SubmitterDBConn,
     email: &Email,
@@ -287,6 +297,7 @@ pub async fn get_pending_certs_by_email(
     Ok(certs)
 }
 
+#[tracing::instrument]
 pub async fn get_approved_names(
     submitter_db: &SubmitterDBConn,
     fpr: &Fingerprint,
@@ -297,6 +308,7 @@ pub async fn get_approved_names(
         .collect())
 }
 
+#[tracing::instrument]
 pub async fn get_approved_emails(
     submitter_db: &SubmitterDBConn,
     fpr: &Fingerprint,
@@ -307,6 +319,7 @@ pub async fn get_approved_emails(
         .collect())
 }
 
+#[derive(Debug)]
 struct ChallengeHolder {
     fpr: String,
     names: HashMap<String, NameVerificationChallenge>,
@@ -365,5 +378,6 @@ impl From<ChallengeHolder> for Vec<VerificationChallenge> {
 embed_migrations!();
 
 pub fn perform_migrations(connection: &SqliteConnection) {
+    info!("performing DB migrations");
     embedded_migrations::run_with_output(connection, &mut std::io::stdout()).expect("DB Migrations failed!");
 }

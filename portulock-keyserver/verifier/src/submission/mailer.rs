@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 
 use async_trait::async_trait;
@@ -17,7 +18,7 @@ use crate::management::ManagementToken;
 use crate::verification::tokens::{SignedEmailVerificationToken, SignedToken};
 
 #[async_trait]
-pub trait Mailer {
+pub trait Mailer: Debug {
     async fn send_signed_email_challenge(
         &self,
         token: &SignedEmailVerificationToken,
@@ -39,6 +40,16 @@ pub struct SmtpMailer {
     connection: SmtpTransport,
     from: Mailbox,
     verification_endpoint_url: String,
+}
+
+impl Debug for SmtpMailer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "SmtpMailer: \n from: {:?}\n verification_endpoint_url: {}",
+            self.from, self.verification_endpoint_url
+        )
+    }
 }
 
 impl SmtpMailer {
@@ -129,6 +140,7 @@ impl Mailer for SmtpMailer {
     }
 }
 
+#[derive(Debug)]
 pub struct NoopMailer {}
 
 #[async_trait]

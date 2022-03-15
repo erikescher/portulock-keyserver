@@ -14,6 +14,7 @@ use crate::errors::CustomError;
 
 const LIMIT: u64 = 1024 * 256;
 
+#[derive(Debug)]
 pub struct LimitedString {
     string: String,
 }

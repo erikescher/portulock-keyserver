@@ -37,6 +37,7 @@ use crate::verification::tokens::SignedToken;
 use crate::verification::TokenKey;
 use crate::{DeletionConfig, SubmitterDBConn};
 
+#[tracing::instrument]
 pub async fn challenge_decrypt(
     fpr: &Fingerprint,
     token_key: &TokenKey,
@@ -53,6 +54,7 @@ pub async fn challenge_decrypt(
     challenge_decrypt_with_key(&cert, token_key, expiration_config).await
 }
 
+#[tracing::instrument]
 pub async fn challenge_decrypt_with_key(
     cert: &Cert,
     token_key: &TokenKey,
@@ -92,6 +94,7 @@ pub async fn challenge_decrypt_with_key(
     Ok(string)
 }
 
+#[tracing::instrument]
 pub async fn challenge_email_all_keys(
     email: Email,
     token_key: &TokenKey,
@@ -113,6 +116,7 @@ pub async fn challenge_email_all_keys(
     Ok(())
 }
 
+#[tracing::instrument]
 pub async fn challenge_email(
     fpr: &Fingerprint,
     email: Option<Email>,
@@ -147,6 +151,7 @@ pub async fn challenge_email(
     Ok(())
 }
 
+#[tracing::instrument]
 fn create_management_token<'a>(
     fpr: &'a Fingerprint,
     token_key: &'a TokenKey,
@@ -190,6 +195,7 @@ pub fn random_string(length: usize) -> String {
         .collect()
 }
 
+#[tracing::instrument]
 pub async fn delete_key(
     management_token: SignedToken<'_, ManagementToken>,
     token_key: &TokenKey,
@@ -221,6 +227,7 @@ pub struct ManagementToken {
     exp: u64,
 }
 
+#[tracing::instrument]
 pub async fn store_revocations(
     fpr: &Fingerprint,
     revocations: Vec<Signature>,
@@ -294,6 +301,7 @@ pub struct PendingUserIDInfo {
     name_verification_required: bool,
 }
 
+#[tracing::instrument]
 pub async fn get_key_status_authenticated(
     signed_management_token: SignedToken<'_, ManagementToken>,
     keystore: &(impl KeyStore + ?Sized),
@@ -311,6 +319,7 @@ pub async fn get_key_status_authenticated(
         })
 }
 
+#[tracing::instrument]
 pub async fn get_key_status(
     fpr: &Fingerprint,
     keystore: &(impl KeyStore + ?Sized),
@@ -394,6 +403,7 @@ pub async fn get_key_status(
     })
 }
 
+#[tracing::instrument]
 pub async fn authenticated_download(
     signed_management_token: SignedToken<'_, ManagementToken>,
     keystore: &(impl KeyStore + ?Sized),
@@ -410,6 +420,7 @@ pub async fn authenticated_download(
         .ok_or_else(|| "No key found for fingerprint!".into())
 }
 
+#[tracing::instrument]
 async fn get_published_and_pending_cert(
     fpr: &Fingerprint,
     keystore: &(impl KeyStore + ?Sized),

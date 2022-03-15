@@ -4,10 +4,10 @@
  */
 
 use std::fmt::{Display, Formatter};
-use anyhow::anyhow;
-use tracing::error;
 
+use anyhow::anyhow;
 use shared::errors::CustomError;
+use tracing::error;
 
 #[derive(Debug)]
 pub enum VerifierError {
@@ -62,7 +62,7 @@ impl From<VerifierError> for CustomError {
     fn from(v: VerifierError) -> Self {
         match v {
             VerifierError::CustomError(e) => e,
-            VerifierError::String(s) => CustomError::str(s.as_str())
+            VerifierError::String(s) => CustomError::str(s.as_str()),
         }
     }
 }

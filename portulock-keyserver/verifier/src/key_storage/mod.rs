@@ -4,6 +4,7 @@
  */
 
 use std::fmt::Debug;
+
 use async_trait::async_trait;
 use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::packet::Signature;
@@ -20,6 +21,7 @@ use crate::SubmitterDBConn;
 pub mod multi_keystore;
 pub mod openpgp_ca_lib;
 
+#[tracing::instrument]
 pub async fn filter_cert_by_approved_uids(submitter_db: &SubmitterDBConn, cert: Cert) -> Result<Cert, VerifierError> {
     let approved_names = get_approved_names(submitter_db, &cert.fingerprint()).await?;
     let approved_emails = get_approved_emails(submitter_db, &cert.fingerprint()).await?;
@@ -34,6 +36,7 @@ pub async fn filter_cert_by_approved_uids(submitter_db: &SubmitterDBConn, cert: 
     Ok(approved_cert)
 }
 
+#[tracing::instrument]
 pub async fn certify_and_publish_approved_cert(
     keystore: &(impl KeyStore + ?Sized),
     approved_cert: Cert,

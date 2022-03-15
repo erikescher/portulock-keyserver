@@ -12,6 +12,7 @@ use crate::db::perform_maintenance;
 use crate::{InternalSecretHolder, SubmitterDBConn};
 
 #[post("/internal/db_cleanup", data = "<secret>")]
+#[tracing::instrument]
 pub fn db_cleanup(
     secret: LimitedString,
     submitter_db: SubmitterDBConn,

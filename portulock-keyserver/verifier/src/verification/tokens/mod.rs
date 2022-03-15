@@ -67,7 +67,7 @@ impl From<String> for SignedNameVerificationToken {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EmailVerificationToken {
     pub email: String,
     pub fpr: String,
@@ -88,7 +88,7 @@ impl EmailVerificationToken {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NameVerificationToken {
     pub(crate) name: String,
     pub(crate) fpr: String,

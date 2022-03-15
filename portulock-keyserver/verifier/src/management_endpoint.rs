@@ -23,6 +23,7 @@ use crate::verification::TokenKey;
 use crate::{management, DeletionConfig, KeyStoreHolder, MailerHolder, SubmitterDBConn};
 
 #[get("/manage/delete?<management_token>")]
+#[tracing::instrument]
 pub fn delete_key(
     management_token: String,
     token_key: State<TokenKey>,
@@ -46,6 +47,7 @@ pub fn delete_key(
 }
 
 #[get("/manage/challenge_decrypt?<fpr>")]
+#[tracing::instrument]
 pub fn challenge_decrypt(
     fpr: String,
     token_key: State<TokenKey>,
@@ -70,6 +72,7 @@ pub fn challenge_decrypt(
 }
 
 #[post("/manage/challenge_decrypt", data = "<public_key>")]
+#[tracing::instrument]
 pub fn challenge_decrypt_with_key(
     public_key: LimitedString,
     token_key: State<TokenKey>,
@@ -91,6 +94,7 @@ pub fn challenge_decrypt_with_key(
 }
 
 #[get("/manage/challenge_email_all?<email>")]
+#[tracing::instrument]
 pub fn challenge_email_all_keys(
     email: String,
     token_key: State<TokenKey>,
@@ -117,6 +121,7 @@ pub fn challenge_email_all_keys(
 }
 
 #[get("/manage/challenge_email?<fpr>&<email>")]
+#[tracing::instrument]
 pub fn challenge_email(
     fpr: String,
     email: Option<String>,
@@ -146,6 +151,7 @@ pub fn challenge_email(
 }
 
 #[post("/manage/store_revocations?<fpr>", data = "<revocations>")]
+#[tracing::instrument]
 pub fn store_revocations(
     fpr: String,
     revocations: LimitedString,
@@ -169,6 +175,7 @@ pub fn store_revocations(
 }
 
 #[get("/manage/status?<management_token>", rank = 2)]
+#[tracing::instrument]
 pub fn status_page(
     management_token: String,
     keystore: State<'_, KeyStoreHolder>,
@@ -193,6 +200,7 @@ pub fn status_page(
 }
 
 #[get("/manage/status_json?<management_token>", rank = 2)]
+#[tracing::instrument]
 pub fn status_page_json(
     management_token: String,
     keystore: State<'_, KeyStoreHolder>,
@@ -217,6 +225,7 @@ pub fn status_page_json(
 }
 
 #[get("/manage/download_authenticated?<management_token>")]
+#[tracing::instrument]
 pub fn authenticated_download(
     management_token: String,
     keystore: State<'_, KeyStoreHolder>,
@@ -239,6 +248,7 @@ pub fn authenticated_download(
     Ok(export_armored_cert(&cert))
 }
 
+#[tracing::instrument]
 pub fn revocations_from_string(revocations: String) -> Result<Vec<Signature>, CustomError> {
     let mut packet_parser_result = PacketParserBuilder::from_bytes(revocations.as_bytes())?
         .buffer_unread_content()

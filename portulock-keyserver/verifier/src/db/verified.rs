@@ -11,7 +11,7 @@ use diesel::{ExpressionMethods, QueryDsl};
 use crate::db::schema::*;
 use crate::utils_verifier::expiration::ExpirationConfig;
 
-#[derive(Queryable, Insertable)]
+#[derive(Queryable, Insertable, Debug)]
 #[table_name = "verified_names"]
 pub struct VerifiedNameEntry {
     fpr: String,
@@ -24,6 +24,7 @@ impl VerifiedNameEntry {
         self.name.clone()
     }
 
+    #[tracing::instrument]
     pub fn new(fpr: &str, name: &str, exp: i64) -> Self {
         VerifiedNameEntry {
             fpr: fpr.to_string(),
@@ -73,6 +74,7 @@ impl VerifiedEmailEntry {
         self.fpr.clone()
     }
 
+    #[tracing::instrument]
     pub fn new(fpr: &str, email: &str, exp: i64) -> Self {
         VerifiedEmailEntry {
             fpr: fpr.to_string(),

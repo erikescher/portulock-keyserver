@@ -26,7 +26,7 @@ use crate::key_storage::KeyStore;
 use crate::management_endpoint::revocations_from_string;
 use crate::utils::armor::certificate_from_str;
 
-#[derive(Clone,  Debug)]
+#[derive(Clone, Debug)]
 pub struct OpenPGPCALib {
     db_url: String,
     domain: String,
@@ -36,6 +36,7 @@ pub struct OpenPGPCALib {
 }
 
 impl OpenPGPCALib {
+    #[tracing::instrument]
     pub fn new(domain: &str, certification_duration: u64, certification_threshold: u64) -> Result<Self, CustomError> {
         let domain = domain.to_string();
         let db_url = format!("./state/ca-{}.sqlite", domain);
@@ -86,6 +87,7 @@ impl OpenPGPCALib {
         BackendCA::new(Some(self.get_db_url())).map_err(CustomError::from)
     }
 
+    #[tracing::instrument]
     fn delete_cert_from_wkd(&self, delisted_cert: &Cert) -> Result<(), CustomError> {
         for uida in delisted_cert.userids() {
             if let Ok(Some(string)) = uida.userid().email_normalized() {
@@ -119,6 +121,7 @@ impl OpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     fn update_wkd_for_cert(&self, cert: &Cert) -> Result<(), CustomError> {
         for cert in CertWithSingleUID::iterate_over_cert(cert) {
             sequoia_net::wkd::insert(
@@ -131,6 +134,7 @@ impl OpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     fn delete_delisted_certs(&self) -> Result<(), CustomError> {
         let mut connection = rusqlite::Connection::open(self.get_db_url())?;
         connection.execute("PRAGMA foreign_keys=on", [])?;
@@ -159,12 +163,14 @@ impl OpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub fn perform_maintenance(&self) -> Result<(), CustomError> {
         let ca = self.get_ca()?;
         ca.certs_refresh_ca_certifications(self.threshold, self.duration)?;
         self.delete_delisted_certs()
     }
 
+    #[tracing::instrument]
     pub fn regenerate_wkd(&self) -> Result<(), CustomError> {
         let ca = self.get_ca()?;
         remove_dir_all(self.get_wkd_path())?;
@@ -175,6 +181,7 @@ impl OpenPGPCALib {
 
 #[async_trait]
 impl KeyStore for &OpenPGPCALib {
+    #[tracing::instrument]
     async fn store(&self, cert: &Cert) -> Result<(), CustomError> {
         let emails = emails_from_cert(cert);
         let emails: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
@@ -195,6 +202,7 @@ impl KeyStore for &OpenPGPCALib {
         self.update_wkd_for_cert(cert)
     }
 
+    #[tracing::instrument]
     async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError> {
         self.get_ca()?
             .certs_by_email(email)
@@ -202,6 +210,7 @@ impl KeyStore for &OpenPGPCALib {
             .map_err(CustomError::from)
     }
 
+    #[tracing::instrument]
     async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
         Ok(self
             .get_ca()?
@@ -209,6 +218,7 @@ impl KeyStore for &OpenPGPCALib {
             .map(ca_cert_model_to_parsed_cert))
     }
 
+    #[tracing::instrument]
     async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
         let ca = self.get_ca()?;
         let mut cert = ca
@@ -220,6 +230,7 @@ impl KeyStore for &OpenPGPCALib {
         Ok(ca.db().cert_update(&cert)?)
     }
 
+    #[tracing::instrument]
     async fn delete(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
         let ca = self.get_ca()?;
         let mut cert = ca
@@ -238,6 +249,7 @@ impl KeyStore for &OpenPGPCALib {
         true
     }
 
+    #[tracing::instrument]
     async fn store_revocations_without_publishing(
         &self,
         _cert: &Cert,
@@ -249,6 +261,7 @@ impl KeyStore for &OpenPGPCALib {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, CustomError> {
         let ca = self.get_ca()?;
         let cert = ca

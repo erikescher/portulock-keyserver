@@ -15,13 +15,14 @@ use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::TokenKey;
 use crate::{KeyStoreHolder, MailerHolder, SubmitterDBConn};
 
-#[derive(FromForm)]
+#[derive(FromForm, Debug)]
 pub struct KeySubmission {
     keytext: String,
 }
 
 #[post("/pks/add?<no_mails>", data = "<submission>")]
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument]
 pub fn submission(
     submission_db: SubmitterDBConn,
     mailer: State<MailerHolder>,

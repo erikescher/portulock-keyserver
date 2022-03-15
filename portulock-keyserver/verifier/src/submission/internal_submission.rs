@@ -27,6 +27,7 @@ use crate::verification::tokens::EmailVerificationToken;
 use crate::verification::{trigger_certification_and_publishing, TokenKey};
 use crate::SubmitterDBConn;
 
+#[tracing::instrument]
 pub async fn submit_key(
     submitter_db: &SubmitterDBConn,
     mailer: &dyn Mailer,
@@ -78,6 +79,7 @@ pub async fn submit_key(
     create_and_send_challenges(cert, mailer, token_key, expiration_config).await
 }
 
+#[tracing::instrument]
 async fn filter_unwanted_data(
     cert: Cert,
     submission_config: &SubmissionConfig,
@@ -105,6 +107,7 @@ async fn filter_unwanted_data(
     Ok(cert)
 }
 
+#[tracing::instrument]
 async fn create_and_send_challenges(
     cert: Cert,
     mailer: &dyn Mailer,
@@ -132,6 +135,7 @@ async fn create_and_send_challenges(
     Ok(verification_challenges)
 }
 
+#[derive(Debug)]
 struct KeyFiterAllowedCertifications {
     certs: Vec<Cert>,
 }
@@ -157,6 +161,7 @@ impl KeyFilter for KeyFiterAllowedCertifications {
     }
 }
 
+#[tracing::instrument]
 fn filter_cert_by_allowed_domains(cert: Cert, submission_config: &SubmissionConfig) -> Cert {
     cert.retain_userids(|uida: UserIDAmalgamation| match uida.component().email_normalized() {
         Ok(o) => match o {
