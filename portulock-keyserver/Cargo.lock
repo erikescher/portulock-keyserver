@@ -88,6 +88,8 @@ dependencies = [
  "serde_yaml",
  "shared",
  "tokio 0.2.25",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3833,7 +3835,6 @@ dependencies = [
  "shared",
  "tokio 0.2.25",
  "tracing",
- "tracing-log",
  "tracing-subscriber",
  "urlencoding",
 ]

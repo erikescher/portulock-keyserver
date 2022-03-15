@@ -11,6 +11,7 @@ use shared::utils::armor::export_armored_certs;
 use shared::utils::async_helper::AsyncHelper;
 
 #[get("/pks/lookup?<search>")]
+#[tracing::instrument]
 // parameters "exact" and "fingerprint" are implied and therefore ignored
 // The "option(s)"/operation is assumed to be "GET". Index and VIndex are treated the same as GET operations.
 pub fn lookup(search: SearchString, lookup_config: State<'_, LookupConfig>) -> Result<String, CustomError> {

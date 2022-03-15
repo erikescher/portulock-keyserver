@@ -18,3 +18,5 @@ anyhow = "1"
 sequoia-net = "0.23" # currently GPL, should be LGPL with next release
 futures = "0.3"
 tokio = { version = "0.2", features = ["full"] } # outdated version in use with sequoia-net
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = "0.3"

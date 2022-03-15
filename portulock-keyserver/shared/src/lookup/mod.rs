@@ -70,6 +70,7 @@ pub async fn lookup_by_fpr(lookup_config: &LookupConfig, fpr: &Fingerprint) -> R
 type KeyIDAlias = String;
 type FingerprintAlias = String;
 
+#[derive(Debug)]
 pub enum SearchString {
     ByKeyID(KeyIDAlias),
     ByFingerprint(FingerprintAlias),

@@ -15,7 +15,10 @@ use shared::utils::async_helper::AsyncHelper;
 
 mod lookup_endpoint;
 
+#[tracing::instrument]
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let rocket = rocket::ignite()
         .mount("/", routes![lookup_endpoint::lookup,])
         .attach(AdHoc::on_attach("Lookup Config", |rocket: Rocket| {
