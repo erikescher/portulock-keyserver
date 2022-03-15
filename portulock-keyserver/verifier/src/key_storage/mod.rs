@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use std::fmt::Debug;
 use async_trait::async_trait;
 use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::packet::Signature;
@@ -49,7 +50,7 @@ pub async fn certify_and_publish_approved_cert(
 }
 
 #[async_trait]
-pub trait KeyStore {
+pub trait KeyStore: Debug {
     async fn store(&self, cert: &Cert) -> Result<(), CustomError>;
     async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError>;
     async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError>;

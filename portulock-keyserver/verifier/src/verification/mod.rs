@@ -87,6 +87,8 @@ pub async fn trigger_certification_and_publishing(
 
 pub mod tokens;
 
+#[derive(Debug)]
+// TODO implement Debug manually or switch to secret type to not log the TokenKey
 pub struct TokenKey {
     secret: Vec<u8>,
 }
@@ -125,6 +127,7 @@ pub struct OpenIDConnectConfigEntry {
     pub endpoint_url: String,
 }
 
+#[tracing::instrument]
 pub async fn verify_name_start(
     fpr: Fingerprint,
     oidc_verifier: &OidcVerifier,
@@ -138,6 +141,7 @@ pub async fn verify_name_start(
     Ok((auth_url.to_string(), cookie_data))
 }
 
+#[tracing::instrument]
 pub async fn verify_name_code(
     state: String,
     code: String,
@@ -185,6 +189,7 @@ pub async fn verify_name_code(
     Ok((token, email_token))
 }
 
+#[tracing::instrument]
 pub async fn verify_name_confirm(
     name_token: SignedNameVerificationToken,
     email_token: Option<SignedEmailVerificationToken>,

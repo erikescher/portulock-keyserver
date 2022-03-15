@@ -26,7 +26,7 @@ use crate::key_storage::KeyStore;
 use crate::management_endpoint::revocations_from_string;
 use crate::utils::armor::certificate_from_str;
 
-#[derive(Clone)]
+#[derive(Clone,  Debug)]
 pub struct OpenPGPCALib {
     db_url: String,
     domain: String,

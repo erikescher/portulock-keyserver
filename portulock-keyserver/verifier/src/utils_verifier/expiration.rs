@@ -8,6 +8,7 @@ use std::ops::Not;
 use chrono::{Duration, NaiveDateTime, Utc};
 use num_traits::cast::ToPrimitive;
 
+#[derive(Debug)]
 pub struct ExpirationConfig {
     offset: Duration,
 }

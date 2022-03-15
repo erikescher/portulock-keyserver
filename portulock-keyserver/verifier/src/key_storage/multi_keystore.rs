@@ -18,7 +18,7 @@ use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use crate::key_storage::KeyStore;
 use crate::utils::merge_certs;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MultiOpenPGPCALib {
     keystores: HashMap<String, OpenPGPCALib>,
 }

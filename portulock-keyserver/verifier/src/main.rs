@@ -16,6 +16,7 @@ extern crate rocket_contrib;
 
 use std::collections::HashMap;
 use std::{thread, time};
+use std::fmt::{Debug, Formatter};
 
 use chrono::Duration;
 use num_traits::ToPrimitive;
@@ -23,6 +24,7 @@ use rocket::config::{Table, Value};
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
 use rocket_contrib::templates::Template;
+use tracing_log::LogTracer;
 pub use shared::certification;
 pub use shared::filtering;
 pub use shared::lookup;
@@ -57,9 +59,20 @@ mod verification;
 mod verification_endpoint;
 
 #[database("sqlite")]
+#[derive(std::fmt::Debug)]
 pub struct SubmitterDBConn(diesel::SqliteConnection);
 
+impl Debug for SubmitterDBConn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SubmitterDBConn") // TODO add SQLite url
+    }
+}
+
+#[tracing::instrument]
 fn main() {
+    LogTracer::init().expect("Failed to initialize system for converting logs to trace events");
+    tracing_subscriber::fmt::init();
+
     let rocket = rocket::ignite()
         .mount(
             "/",
@@ -223,6 +236,7 @@ fn main() {
 
 pub struct ExternalURLHolder(String);
 
+#[derive(Debug)]
 pub enum KeyStoreHolder {
     OpenPGPCALib(OpenPGPCALib),
     MultiOpenPGPCALib(MultiOpenPGPCALib),

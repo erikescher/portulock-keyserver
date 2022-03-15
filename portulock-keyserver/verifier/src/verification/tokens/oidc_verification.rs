@@ -21,6 +21,7 @@ use shared::errors::CustomError;
 
 use crate::errors::VerifierError;
 
+#[derive(Debug)]
 pub struct OidcVerifier {
     client: CoreClient,
 }

@@ -88,6 +88,7 @@ pub fn verify_email_confirm(
 const COOKIE_KEY: &str = "auth_challenge";
 
 #[get("/verify/name_start?<fpr>")]
+#[tracing::instrument]
 pub fn verify_name_start(
     fpr: String,
     oidc_verifier: State<OidcVerifier>,
@@ -109,6 +110,7 @@ pub fn verify_name_start(
 }
 
 #[get("/verify/name_code?<state>&<code>")]
+#[tracing::instrument]
 pub fn verify_name_code(
     state: String,
     code: String,
@@ -153,13 +155,14 @@ pub fn verify_name_code(
     Ok(Template::render("verify_name_code", context))
 }
 
-#[derive(FromForm)]
+#[derive(FromForm, Debug)]
 pub struct ConfirmNamePayload {
     name_token: String,
     email_token: Option<String>,
 }
 
 #[post("/verify/name_confirm", data = "<payload>")]
+#[tracing::instrument]
 pub fn verify_name_confirm(
     payload: Form<ConfirmNamePayload>,
     submitter_db: SubmitterDBConn,
