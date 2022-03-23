@@ -8,8 +8,8 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-wasm-bindgen = "0.2.78"
-sequoia-openpgp = { git = "https://gitlab.com/sequoia-pgp/sequoia", default-features = false, features = [ "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
+wasm-bindgen = "=0.2.78" # 0.2.79 introduces clippy warnings which are fixed in the unreleased version 0.2.80
+sequoia-openpgp = { version = "1.8", default-features = false, features = [ "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 console_error_panic_hook = "0.1.7"
 anyhow = "1.0.44"
 base64 = "0.13.0"
