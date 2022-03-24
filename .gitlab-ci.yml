@@ -117,7 +117,7 @@ server_image_verifier:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target verifier --tag verifier .
+    - docker build --target verifier --tag verifier --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
     - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
@@ -136,7 +136,7 @@ server_image_aggregator:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target aggregator --tag aggregator .
+    - docker build --target aggregator --tag aggregator --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
     - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
@@ -265,7 +265,7 @@ reverse_proxy_image:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target reverse_proxy --tag reverse_proxy .
+    - docker build --target reverse_proxy --tag reverse_proxy --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
     - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
     - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
