@@ -108,7 +108,8 @@ server_image_verifier:
   rules:
     - if: '$TASK_NAME == "rebuild"'
     - changes:
-      - "portulock-keyserver/**/*"
+      - "portulock-keyserver/shared/**/*"
+      - "portulock-keyserver/verifier/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
   image: docker
@@ -127,7 +128,8 @@ server_image_aggregator:
   rules:
     - if: '$TASK_NAME == "rebuild"'
     - changes:
-      - "portulock-keyserver/**/*"
+      - "portulock-keyserver/shared/**/*"
+      - "portulock-keyserver/aggregator/**/*"
       - ".gitlab-ci.yml"
       - "Dockerfile"
   image: docker
