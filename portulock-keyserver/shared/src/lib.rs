@@ -3,11 +3,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-pub mod certification;
-pub mod config;
 pub mod errors;
 pub mod filtering;
-pub mod lookup;
 pub mod types;
 pub mod utils;
 

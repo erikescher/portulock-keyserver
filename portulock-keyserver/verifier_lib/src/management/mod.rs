@@ -13,12 +13,16 @@ use rand::Rng;
 use sequoia_openpgp::cert::prelude::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
 use sequoia_openpgp::packet::key::{KeyRole, PublicParts};
 use sequoia_openpgp::packet::{Key, Signature};
+use sequoia_openpgp::parse::{PacketParserBuilder, PacketParserResult, Parse};
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::stream::{Armorer, Encryptor, LiteralWriter, Message};
-use sequoia_openpgp::types::PublicKeyAlgorithm;
-use sequoia_openpgp::{Cert, Fingerprint};
+use sequoia_openpgp::types::{PublicKeyAlgorithm, SignatureType};
+use sequoia_openpgp::{Cert, Fingerprint, Packet};
 use serde::{Deserialize, Serialize};
 use shared::errors::CustomError;
+use shared::filtering::applier::KeyFilterApplier;
+use shared::filtering::filters::KeyFilterSubtractingPackets;
+use shared::types::Email;
 use shared::utils::armor::{armor_signature, export_armored_cert};
 use shared::utils::merge_certs;
 
@@ -26,12 +30,9 @@ use crate::db::{
     delete_data_for_fingerprint, get_approved_emails, get_approved_names, get_pending_cert, get_pending_certs_by_email,
     get_stored_revocations, store_pending_revocation,
 };
-use crate::filtering::applier::KeyFilterApplier;
-use crate::filtering::filters::KeyFilterSubtractingPackets;
 use crate::key_storage::emails_from_cert;
 use crate::key_storage::KeyStore;
 use crate::submission::mailer::Mailer;
-use crate::types::Email;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::SignedToken;
 use crate::verification::TokenKey;
@@ -499,4 +500,23 @@ fn key_algo_to_string(algo: PublicKeyAlgorithm) -> String {
         PublicKeyAlgorithm::Unknown(n) => format!("Unknown Algorithm (No. {})", n),
         _ => "Unknown Algorithm".into(),
     }
+}
+
+#[tracing::instrument]
+pub fn revocations_from_string(revocations: String) -> Result<Vec<Signature>, CustomError> {
+    let mut packet_parser_result = PacketParserBuilder::from_bytes(revocations.as_bytes())?
+        .buffer_unread_content()
+        .build()?;
+    let mut parsed = vec![];
+    while let PacketParserResult::Some(packet_parser) = packet_parser_result {
+        let (packet, next_ppr) = packet_parser.next()?;
+        packet_parser_result = next_ppr;
+
+        if let Packet::Signature(sig) = packet {
+            if sig.typ() == SignatureType::KeyRevocation {
+                parsed.push(sig.clone())
+            }
+        }
+    }
+    Ok(parsed)
 }

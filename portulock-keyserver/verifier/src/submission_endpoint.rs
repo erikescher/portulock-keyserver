@@ -6,14 +6,15 @@
 use rocket::request::Form;
 use rocket::State;
 use shared::errors::CustomError;
+use shared::utils::armor;
+use shared::utils::async_helper::AsyncHelper;
+use verifier_lib::submission::submit_keys;
+use verifier_lib::submission::SubmissionConfig;
+use verifier_lib::utils_verifier::expiration::ExpirationConfig;
+use verifier_lib::verification::TokenKey;
 
-use crate::submission::submit_keys;
-use crate::submission::SubmissionConfig;
-use crate::utils::armor;
-use crate::utils::async_helper::AsyncHelper;
-use crate::utils_verifier::expiration::ExpirationConfig;
-use crate::verification::TokenKey;
-use crate::{KeyStoreHolder, MailerHolder, SubmitterDBConn};
+use crate::holders::{KeyStoreHolder, MailerHolder};
+use crate::SubmitterDBConn;
 
 #[derive(FromForm, Debug)]
 pub struct KeySubmission {

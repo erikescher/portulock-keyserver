@@ -10,11 +10,11 @@ use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
 use shared::errors::CustomError;
+use shared::filtering::applier::KeyFilterApplier;
+use shared::filtering::filters::{KeyFilterUIDsMatchingEmails, KeyFilterUIDsMatchingNames};
 
 use crate::db::{get_approved_emails, get_approved_names};
 use crate::errors::VerifierError;
-use crate::filtering::applier::KeyFilterApplier;
-use crate::filtering::filters::{KeyFilterUIDsMatchingEmails, KeyFilterUIDsMatchingNames};
 use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use crate::SubmitterDBConn;
 

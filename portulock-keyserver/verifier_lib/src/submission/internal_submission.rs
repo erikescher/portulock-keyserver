@@ -6,22 +6,22 @@
 use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::Cert;
 use shared::errors::CustomError;
+use shared::filtering::applier::{KeyFilter, KeyFilterApplier};
+use shared::filtering::filter_cert;
 use shared::filtering::filters::KeyFilterSubtractingUserIDs;
+use shared::filtering::filters::{
+    KeyFilterAttestedCertifications, KeyFilterSubtractingPackets, KeyFilterWhitelistedCertifications,
+};
 use shared::types::Email;
+use shared::utils::any_email;
 
 use crate::db::{
     create_verification_challenges, get_pending_cert, store_uids_pending_verification, VerificationChallenge,
 };
 use crate::errors::VerifierError;
-use crate::filtering::applier::{KeyFilter, KeyFilterApplier};
-use crate::filtering::filter_cert;
-use crate::filtering::filters::{
-    KeyFilterAttestedCertifications, KeyFilterSubtractingPackets, KeyFilterWhitelistedCertifications,
-};
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
 use crate::submission::SubmissionConfig;
-use crate::utils::any_email;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::EmailVerificationToken;
 use crate::verification::{trigger_certification_and_publishing, TokenKey};

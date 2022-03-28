@@ -9,6 +9,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
 use serde::{Deserialize, Serialize};
 use shared::errors::CustomError;
+use shared::types::Email;
 use tracing::info;
 
 use crate::db::{
@@ -17,7 +18,6 @@ use crate::db::{
 use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
-use crate::types::Email;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::oidc_verification::{OIDCAuthChallenge, OidcVerifier};
 use crate::verification::tokens::{

@@ -6,12 +6,12 @@
 use std::collections::HashMap;
 
 use rocket::config::{Array, Table, Value};
+use shared::utils::armor;
 
 use crate::certification::local::LocalCertifier;
 use crate::certification::CertifierConfig;
 use crate::lookup::keyserver::Keyserver;
 use crate::lookup::{LookupConfig, LookupDomainConfig};
-use crate::utils::armor;
 
 pub fn lookup_config_from_config_table(lookup_config_table: &Table) -> LookupConfig {
     let special_domains: HashMap<String, LookupDomainConfig> = lookup_config_table

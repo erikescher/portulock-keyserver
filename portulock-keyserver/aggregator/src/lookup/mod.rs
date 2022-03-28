@@ -9,13 +9,13 @@ use std::str::FromStr;
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
 use sequoia_openpgp::{Cert, Fingerprint, KeyHandle, KeyID};
+use shared::errors::CustomError;
+use shared::filtering::filter_certs;
+use shared::types::Email;
+use shared::utils::merge_certs;
 
 use crate::certification::CertifierConfig;
-use crate::errors::CustomError;
-use crate::filtering::filter_certs;
 use crate::lookup::keyserver::Keyserver;
-use crate::types::Email;
-use crate::utils::merge_certs;
 
 mod email;
 mod handle;
@@ -57,6 +57,7 @@ pub struct LookupDomainConfig {
     pub use_for_keyhandle_query: bool,
 }
 
+#[allow(dead_code)]
 pub async fn lookup_by_fpr(lookup_config: &LookupConfig, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
     let locator = SearchString::ByFingerprint(fpr.to_string());
     let mut existing_certs = lookup(lookup_config, locator).await?;
@@ -100,6 +101,7 @@ impl SearchString {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_url_parameter(&self) -> String {
         match self {
             SearchString::ByKeyID(k) => k.to_string(),

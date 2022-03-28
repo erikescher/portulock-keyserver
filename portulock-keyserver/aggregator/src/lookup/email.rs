@@ -5,14 +5,14 @@
 
 use sequoia_openpgp::cert::prelude::UserIDAmalgamation;
 use sequoia_openpgp::Cert;
+use shared::errors::CustomError;
+use shared::filtering::filter_certs;
+use shared::types::Email;
+use shared::utils::merge_certs;
 
 use crate::certification::CertifierFactory;
-use crate::errors::CustomError;
-use crate::filtering::filter_certs;
 use crate::lookup::keyserver::Keyserver;
 use crate::lookup::{LookupConfig, LookupDomainConfig};
-use crate::types::Email;
-use crate::utils::merge_certs;
 
 pub async fn lookup_email(config: &LookupConfig, email: &Email) -> Result<Vec<Cert>, CustomError> {
     let certs = match config.config_for_domain(email.get_domain()) {

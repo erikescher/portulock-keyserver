@@ -6,16 +6,9 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
-#[macro_use]
 extern crate rocket;
-#[macro_use]
-extern crate rocket_contrib;
 
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
 use std::{thread, time};
 
 use chrono::Duration;
@@ -24,48 +17,28 @@ use rocket::config::{Table, Value};
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
 use rocket_contrib::templates::Template;
-pub use shared::certification;
-pub use shared::filtering;
-pub use shared::lookup;
-pub use shared::types;
-pub use shared::utils;
+use shared::utils;
 use shared::utils::armor;
-use submission::SubmissionConfig;
 use utils::async_helper::AsyncHelper;
+use verifier_lib::db::perform_migrations;
+use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
+use verifier_lib::key_storage::openpgp_ca_lib::OpenPGPCALib;
+use verifier_lib::management::random_string;
+use verifier_lib::submission::mailer::{SmtpConnectionSecurity, SmtpMailer};
+use verifier_lib::submission::SubmissionConfig;
+use verifier_lib::utils_verifier::expiration::ExpirationConfig;
+use verifier_lib::verification::{OpenIDConnectConfig, OpenIDConnectConfigEntry, TokenKey, VerificationConfig};
+use verifier_lib::DeletionConfig;
 
-use crate::db::perform_migrations;
-use crate::errors::VerifierError;
-use crate::key_storage::multi_keystore::MultiOpenPGPCALib;
-use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
-use crate::key_storage::KeyStore;
-use crate::management::random_string;
-use crate::submission::mailer::{Mailer, NoopMailer, SmtpConnectionSecurity, SmtpMailer};
-use crate::utils_verifier::expiration::ExpirationConfig;
-use crate::verification::tokens::oidc_verification::OidcVerifier;
-use crate::verification::{OpenIDConnectConfig, OpenIDConnectConfigEntry, TokenKey, VerificationConfig};
+use crate::holders::{ExternalURLHolder, InternalSecretHolder, KeyStoreHolder, MailerHolder};
 
-mod certs;
-mod db;
-mod errors;
+mod holders;
 mod internal_endpoint;
-mod key_storage;
-mod management;
 mod management_endpoint;
-mod submission;
 mod submission_endpoint;
-mod utils_verifier;
-mod verification;
 mod verification_endpoint;
 
-#[database("sqlite")]
-#[derive(std::fmt::Debug)]
-pub struct SubmitterDBConn(diesel::SqliteConnection);
-
-impl Debug for SubmitterDBConn {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SubmitterDBConn") // TODO add SQLite url
-    }
-}
+pub use verifier_lib::SubmitterDBConn;
 
 #[tracing::instrument]
 fn main() {
@@ -170,7 +143,7 @@ fn main() {
             };
             let oidc_verifier = AsyncHelper::new()
                 .unwrap()
-                .wait_for(create_verifier(&verification_config))
+                .wait_for(verifier_lib::create_verifier(&verification_config))
                 .unwrap();
             let rocket = rocket.manage(verification_config);
             let rocket = rocket.manage(oidc_verifier);
@@ -241,58 +214,4 @@ fn main() {
     });
 
     rocket.launch();
-}
-
-#[derive(Debug)]
-pub struct ExternalURLHolder(String);
-
-#[derive(Debug)]
-pub enum KeyStoreHolder {
-    OpenPGPCALib(OpenPGPCALib),
-    MultiOpenPGPCALib(MultiOpenPGPCALib),
-}
-
-#[derive(Debug)] // TODO do not print secret to logs
-pub struct InternalSecretHolder(String);
-
-#[derive(Debug)]
-pub enum DeletionConfig {
-    Always(),
-    Never(),
-}
-
-impl KeyStoreHolder {
-    pub fn get_key_store(&self) -> Box<dyn KeyStore + '_> {
-        match self {
-            KeyStoreHolder::OpenPGPCALib(k) => Box::new(k),
-            KeyStoreHolder::MultiOpenPGPCALib(k) => Box::new(k),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum MailerHolder {
-    NoopMailer(),
-    SmtpMailer(SmtpMailer),
-}
-
-impl MailerHolder {
-    fn get_mailer(&self) -> &dyn Mailer {
-        if let MailerHolder::SmtpMailer(s) = self {
-            s
-        } else {
-            &NoopMailer {}
-        }
-    }
-}
-
-async fn create_verifier(verification_config: &VerificationConfig) -> Result<OidcVerifier, VerifierError> {
-    let config_entry = &verification_config.oidc_config.entry;
-    OidcVerifier::new(
-        config_entry.issuer_url.as_str(),
-        config_entry.client_id.as_str(),
-        config_entry.client_secret.as_deref(),
-        config_entry.endpoint_url.as_str(),
-    )
-    .await
 }

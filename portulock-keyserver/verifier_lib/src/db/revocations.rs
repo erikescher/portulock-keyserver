@@ -10,7 +10,7 @@ use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::Fingerprint;
 
 use crate::db::schema::*;
-use crate::management_endpoint::revocations_from_string;
+use crate::management::revocations_from_string;
 use crate::utils_verifier::expiration::ExpirationConfig;
 
 #[derive(Queryable, Insertable, Debug)]

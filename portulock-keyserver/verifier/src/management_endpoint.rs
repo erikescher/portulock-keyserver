@@ -7,20 +7,20 @@ use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::templates::Template;
 use sequoia_openpgp::packet::Signature;
-use sequoia_openpgp::parse::{PacketParserBuilder, PacketParserResult, Parse};
-use sequoia_openpgp::types::SignatureType;
-use sequoia_openpgp::{Fingerprint, Packet};
+use sequoia_openpgp::Fingerprint;
 use shared::errors::CustomError;
+use shared::types::Email;
 use shared::utils::armor::{export_armored_cert, parse_certs};
+use shared::utils::async_helper::AsyncHelper;
+use shared::utils::rocket_helpers::LimitedString;
+use verifier_lib::management::{KeyStatus, ManagementToken};
+use verifier_lib::utils_verifier::expiration::ExpirationConfig;
+use verifier_lib::verification::tokens::SignedToken;
+use verifier_lib::verification::TokenKey;
+use verifier_lib::{management, DeletionConfig};
 
-use crate::management::{KeyStatus, ManagementToken};
-use crate::types::Email;
-use crate::utils::async_helper::AsyncHelper;
-use crate::utils::rocket_helpers::LimitedString;
-use crate::utils_verifier::expiration::ExpirationConfig;
-use crate::verification::tokens::SignedToken;
-use crate::verification::TokenKey;
-use crate::{management, DeletionConfig, KeyStoreHolder, MailerHolder, SubmitterDBConn};
+use crate::holders::{KeyStoreHolder, MailerHolder};
+use crate::SubmitterDBConn;
 
 #[get("/manage/delete?<management_token>")]
 #[tracing::instrument]
@@ -161,7 +161,7 @@ pub fn store_revocations(
 ) -> Result<(), CustomError> {
     let keystore = keystore.inner().get_key_store();
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
-    let revocations: Vec<Signature> = revocations_from_string(revocations.into())?;
+    let revocations: Vec<Signature> = management::revocations_from_string(revocations.into())?;
 
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
@@ -246,23 +246,4 @@ pub fn authenticated_download(
                 token_key,
             ))?;
     Ok(export_armored_cert(&cert))
-}
-
-#[tracing::instrument]
-pub fn revocations_from_string(revocations: String) -> Result<Vec<Signature>, CustomError> {
-    let mut packet_parser_result = PacketParserBuilder::from_bytes(revocations.as_bytes())?
-        .buffer_unread_content()
-        .build()?;
-    let mut parsed = vec![];
-    while let PacketParserResult::Some(packet_parser) = packet_parser_result {
-        let (packet, next_ppr) = packet_parser.next()?;
-        packet_parser_result = next_ppr;
-
-        if let Packet::Signature(sig) = packet {
-            if sig.typ() == SignatureType::KeyRevocation {
-                parsed.push(sig.clone())
-            }
-        }
-    }
-    Ok(parsed)
 }

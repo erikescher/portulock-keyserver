@@ -8,11 +8,7 @@ edition = "2018"
 shared = {path="../shared"}
 serde = { version="1.0", features= ["derive"]}
 rocket = "0.4"
-jsonwebtoken = "7"
 sequoia-openpgp = "1"
-base64 = "0.13"
-serde_yaml = "0.8"
-regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 anyhow = "1"
 sequoia-net = "0.23" # currently GPL, should be LGPL with next release
@@ -20,3 +16,5 @@ futures = "0.3"
 tokio = { version = "0.2", features = ["full"] } # outdated version in use with sequoia-net
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = "0.3"
+async-trait = "0.1.52"
+hex = "0.4.3"

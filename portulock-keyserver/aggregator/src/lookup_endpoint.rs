@@ -5,10 +5,11 @@
 
 use rocket::State;
 use shared::errors::CustomError;
-use shared::lookup;
-use shared::lookup::{LookupConfig, SearchString};
 use shared::utils::armor::export_armored_certs;
 use shared::utils::async_helper::AsyncHelper;
+
+use crate::lookup;
+use crate::lookup::{LookupConfig, SearchString};
 
 #[get("/pks/lookup?<search>")]
 #[tracing::instrument]

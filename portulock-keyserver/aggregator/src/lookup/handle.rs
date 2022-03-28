@@ -6,14 +6,14 @@
 use std::collections::{HashMap, HashSet};
 
 use sequoia_openpgp::{Cert, KeyHandle};
+use shared::errors::CustomError;
+use shared::filtering::filter_certs;
+use shared::types::Email;
+use shared::utils::maps::map2vec_k;
 
-use crate::errors::CustomError;
-use crate::filtering::filter_certs;
 use crate::lookup::email::lookup_email;
 use crate::lookup::keyserver::Keyserver;
 use crate::lookup::LookupConfig;
-use crate::types::Email;
-use crate::utils::maps::map2vec_k;
 
 pub async fn lookup_handle(config: &LookupConfig, handle: &KeyHandle) -> Result<Vec<Cert>, CustomError> {
     // This uses all keyservers to obtain a list of email addresses for the certs before querying the

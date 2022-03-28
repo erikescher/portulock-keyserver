@@ -9,11 +9,11 @@ use chrono::NaiveDateTime;
 use diesel::RunQueryDsl;
 use diesel::SqliteConnection;
 use sequoia_openpgp::Cert;
+use shared::utils::armor::export_armored_cert;
+use shared::utils::merge_certs;
 
 use crate::certs::CertWithSingleUID;
 use crate::db::schema::*;
-use crate::utils::armor::export_armored_cert;
-use crate::utils::merge_certs;
 use crate::utils_verifier::expiration::ExpirationConfig;
 
 #[derive(Debug)]

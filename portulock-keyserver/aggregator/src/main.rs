@@ -8,11 +8,14 @@
 #[macro_use]
 extern crate rocket;
 
+use config::lookup_config_from_config_table;
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
-use shared::config::lookup_config_from_config_table;
 use shared::utils::async_helper::AsyncHelper;
 
+mod certification;
+mod config;
+mod lookup;
 mod lookup_endpoint;
 
 #[tracing::instrument]

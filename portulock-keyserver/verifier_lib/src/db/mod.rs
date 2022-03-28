@@ -13,16 +13,16 @@ use pending::{PendingCertWithoutUIDs, UIDPendingVerification};
 use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
 use serde::Serialize;
+use shared::filtering::applier::KeyFilterApplier;
+use shared::filtering::filters::{KeyFilterStrippingUserids, KeyFilterSubtractingPackets};
+use shared::types::Email;
 use shared::utils::armor::armor_signature;
+use shared::utils::merge_certs;
 use tracing::info;
 
 use crate::certs::CertWithSingleUID;
 use crate::db::revocations::PendingRevocation;
 use crate::db::verified::{VerifiedEmailEntry, VerifiedNameEntry};
-use crate::filtering::applier::KeyFilterApplier;
-use crate::filtering::filters::{KeyFilterStrippingUserids, KeyFilterSubtractingPackets};
-use crate::types::Email;
-use crate::utils::merge_certs;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::SubmitterDBConn;
 

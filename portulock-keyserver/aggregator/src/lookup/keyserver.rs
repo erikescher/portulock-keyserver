@@ -5,9 +5,8 @@
 
 use sequoia_net::{KeyServer, Policy};
 use sequoia_openpgp::{Cert, KeyHandle};
-
-use crate::errors::CustomError;
-use crate::types::Email;
+use shared::errors::CustomError;
+use shared::types::Email;
 
 #[derive(Clone, Eq, Debug)]
 pub struct Keyserver {

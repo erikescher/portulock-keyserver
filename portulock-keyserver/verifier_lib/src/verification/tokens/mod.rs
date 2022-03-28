@@ -90,8 +90,8 @@ impl EmailVerificationToken {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NameVerificationToken {
-    pub(crate) name: String,
-    pub(crate) fpr: String,
+    pub name: String,
+    pub fpr: String,
     pub exp: u64,
     pub iat: u64,
     pub nbf: u64,

@@ -3,4 +3,5 @@ members = [
     "aggregator",
     "shared",
     "verifier",
+    "verifier_lib"
 ]

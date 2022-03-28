@@ -12,11 +12,11 @@ use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
 use shared::errors::CustomError;
 use shared::types::Email;
+use shared::utils::merge_certs;
 
 use crate::certs::CertWithSingleUID;
 use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use crate::key_storage::KeyStore;
-use crate::utils::merge_certs;
 
 #[derive(Clone, Debug)]
 pub struct MultiOpenPGPCALib {

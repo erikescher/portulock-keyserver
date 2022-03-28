@@ -18,13 +18,13 @@ use sequoia_openpgp::serialize::Serialize;
 use sequoia_openpgp::{Cert, Fingerprint};
 use shared::errors::CustomError;
 use shared::types::Email;
+use shared::utils::armor::certificate_from_str;
 use shared::utils::armor::{armor_signature, export_armored_cert};
 
 use crate::certs::CertWithSingleUID;
 use crate::key_storage::emails_from_cert;
 use crate::key_storage::KeyStore;
-use crate::management_endpoint::revocations_from_string;
-use crate::utils::armor::certificate_from_str;
+use crate::management::revocations_from_string;
 
 #[derive(Clone, Debug)]
 pub struct OpenPGPCALib {

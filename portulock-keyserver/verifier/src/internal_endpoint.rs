@@ -7,9 +7,10 @@ use rocket::State;
 use shared::errors::CustomError;
 use shared::utils::async_helper::AsyncHelper;
 use shared::utils::rocket_helpers::LimitedString;
+use verifier_lib::db::perform_maintenance;
 
-use crate::db::perform_maintenance;
-use crate::{InternalSecretHolder, SubmitterDBConn};
+use crate::holders::InternalSecretHolder;
+use crate::SubmitterDBConn;
 
 #[post("/internal/db_cleanup", data = "<secret>")]
 #[tracing::instrument]

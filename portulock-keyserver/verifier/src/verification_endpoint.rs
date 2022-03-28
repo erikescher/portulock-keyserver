@@ -15,14 +15,16 @@ use rocket::State;
 use rocket_contrib::templates::Template;
 use sequoia_openpgp::Fingerprint;
 use shared::errors::CustomError;
+use shared::types::Email;
+use shared::utils::async_helper::AsyncHelper;
+use verifier_lib::utils_verifier::expiration::ExpirationConfig;
+use verifier_lib::verification;
+use verifier_lib::verification::tokens::oidc_verification::OidcVerifier;
+use verifier_lib::verification::tokens::{SignedEmailVerificationToken, SignedNameVerificationToken};
+use verifier_lib::verification::{AuthChallengeCookie, TokenKey};
 
-use crate::types::Email;
-use crate::utils::async_helper::AsyncHelper;
-use crate::utils_verifier::expiration::ExpirationConfig;
-use crate::verification::tokens::oidc_verification::OidcVerifier;
-use crate::verification::tokens::{SignedEmailVerificationToken, SignedNameVerificationToken};
-use crate::verification::{AuthChallengeCookie, TokenKey};
-use crate::{verification, KeyStoreHolder, MailerHolder, SubmitterDBConn};
+use crate::holders::{KeyStoreHolder, MailerHolder};
+use crate::SubmitterDBConn;
 
 #[get("/verify/email_request?<fpr>&<email>")]
 #[tracing::instrument]
