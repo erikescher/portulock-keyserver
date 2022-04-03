@@ -17,6 +17,7 @@ use sequoia_openpgp::Fingerprint;
 use shared::errors::CustomError;
 use shared::types::Email;
 use shared::utils::async_helper::AsyncHelper;
+use verifier_lib::db_new::DBWrapper;
 use verifier_lib::errors::VerifierError;
 use verifier_lib::key_storage::KeyStore;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
@@ -25,8 +26,9 @@ use verifier_lib::verification::sso::AuthSystem;
 use verifier_lib::verification::tokens::{SignedEmailVerificationToken, SignedNameVerificationToken};
 use verifier_lib::verification::{AuthChallengeCookie, TokenKey};
 
+use crate::db::diesel_sqlite::DieselSQliteDB;
+use crate::db::SubmitterDBConn;
 use crate::holders::{KeyStoreHolder, MailerHolder};
-use crate::SubmitterDBConn;
 
 #[get("/verify/email_request?<fpr>&<email>")]
 #[tracing::instrument]
@@ -270,6 +272,9 @@ pub fn verify_confirm(
     keystore: State<'_, KeyStoreHolder>,
     token_key: State<TokenKey>,
 ) -> Result<String, CustomError> {
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
         .wait_for(verify_confirm_async(
@@ -283,7 +288,7 @@ pub fn verify_confirm(
 #[tracing::instrument]
 async fn verify_confirm_async(
     payload: ConfirmPayload,
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     keystore: &(impl KeyStore + ?Sized),
     token_key: &TokenKey,
 ) -> Result<String, CustomError> {

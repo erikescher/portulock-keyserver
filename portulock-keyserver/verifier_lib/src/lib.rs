@@ -1,11 +1,4 @@
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
-#[macro_use]
-extern crate rocket_contrib;
-
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
 use crate::errors::VerifierError;
 use crate::verification::sso::oidc_verification::OidcVerifier;
@@ -15,21 +8,13 @@ use crate::verification::SSOConfigEntry;
 
 pub mod certs;
 pub mod db;
+pub mod db_new;
 pub mod errors;
 pub mod key_storage;
 pub mod management;
 pub mod submission;
 pub mod utils_verifier;
 pub mod verification;
-
-#[database("sqlite")]
-pub struct SubmitterDBConn(diesel::SqliteConnection);
-
-impl Debug for SubmitterDBConn {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SubmitterDBConn") // TODO add SQLite url
-    }
-}
 
 #[derive(Debug)]
 pub enum DeletionConfig {

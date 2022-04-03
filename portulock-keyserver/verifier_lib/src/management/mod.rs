@@ -26,17 +26,14 @@ use shared::types::Email;
 use shared::utils::armor::{armor_signature, export_armored_cert};
 use shared::utils::merge_certs;
 
-use crate::db::{
-    delete_data_for_fingerprint, get_approved_emails, get_approved_names, get_pending_cert, get_pending_certs_by_email,
-    get_stored_revocations, store_pending_revocation,
-};
+use crate::db_new::DBWrapper;
 use crate::key_storage::emails_from_cert;
 use crate::key_storage::KeyStore;
 use crate::submission::mailer::Mailer;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::tokens::SignedToken;
 use crate::verification::TokenKey;
-use crate::{DeletionConfig, SubmitterDBConn};
+use crate::DeletionConfig;
 
 #[tracing::instrument]
 pub async fn challenge_decrypt(
@@ -44,11 +41,13 @@ pub async fn challenge_decrypt(
     token_key: &TokenKey,
     expiration_config: &ExpirationConfig,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
 ) -> Result<String, CustomError> {
+    // TODO: might be obsolete and unused
     let cert = match keystore.get_by_fpr(fpr).await? {
         Some(cert) => cert,
-        None => get_pending_cert(submitter_db, fpr)
+        None => submitter_db
+            .get_pending_cert_by_fpr(fpr)
             .await?
             .ok_or("No key with this Fingerprint found in the keystore")?,
     };
@@ -102,11 +101,11 @@ pub async fn challenge_email_all_keys(
     expiration_config: &ExpirationConfig,
     mailer: &dyn Mailer,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
 ) -> Result<(), CustomError> {
     let mut certs = vec![];
     certs.append(&mut keystore.list_by_email(email.get_email().as_str()).await?);
-    certs.append(&mut get_pending_certs_by_email(submitter_db, &email).await?);
+    certs.append(&mut submitter_db.get_pending_cert_by_email(&email).await?);
     let certs = merge_certs(certs);
 
     for cert in certs {
@@ -125,10 +124,10 @@ pub async fn challenge_email(
     expiration_config: &ExpirationConfig,
     mailer: &dyn Mailer,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
 ) -> Result<(), CustomError> {
     let published_cert = keystore.get_by_fpr(fpr).await?;
-    let pending_cert = get_pending_cert(submitter_db, fpr).await?;
+    let pending_cert = submitter_db.get_pending_cert_by_fpr(fpr).await?;
 
     let certs = vec![published_cert, pending_cert].into_iter().flatten().collect();
     let cert = merge_certs(certs)
@@ -201,7 +200,7 @@ pub async fn delete_key(
     management_token: SignedToken<'_, ManagementToken>,
     token_key: &TokenKey,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     deletion_config: &DeletionConfig,
 ) -> Result<(), CustomError> {
     let management_token = management_token.verify(token_key)?;
@@ -216,7 +215,7 @@ pub async fn delete_key(
     }
 
     keystore.delete(&fpr).await?;
-    delete_data_for_fingerprint(&fpr, submitter_db).await?;
+    submitter_db.delete_data_for_fpr(&fpr).await?;
     Ok(())
 }
 
@@ -233,7 +232,7 @@ pub async fn store_revocations(
     fpr: &Fingerprint,
     revocations: Vec<Signature>,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     expiration_config: &ExpirationConfig,
 ) -> Result<(), CustomError> {
     if !keystore.can_store_revocations_without_publishing() {
@@ -250,7 +249,9 @@ pub async fn store_revocations(
         (None, Some(pending)) => {
             let fpr = pending.fingerprint();
             for revocation in verify_revocations(revocations.into_iter(), pending) {
-                store_pending_revocation(submitter_db, expiration_config, revocation, &fpr).await?
+                submitter_db
+                    .store_pending_revocation(&revocation, &fpr, expiration_config.expiration_u64())
+                    .await?
             }
             Ok(())
         }
@@ -306,7 +307,7 @@ pub struct PendingUserIDInfo {
 pub async fn get_key_status_authenticated(
     signed_management_token: SignedToken<'_, ManagementToken>,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     deletion_config: &DeletionConfig,
 ) -> Result<KeyStatus, CustomError> {
@@ -324,19 +325,20 @@ pub async fn get_key_status_authenticated(
 pub async fn get_key_status(
     fpr: &Fingerprint,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     deletion_config: &DeletionConfig,
 ) -> Result<KeyStatus, CustomError> {
     let (published_cert, pending_cert) = get_published_and_pending_cert(fpr, keystore, submitter_db).await?;
-    let approved_names = get_approved_names(submitter_db, fpr).await?;
-    let approved_emails = get_approved_emails(submitter_db, fpr).await?;
+    let approved_names = submitter_db.get_approved_names(fpr).await?;
+    let approved_emails = submitter_db.get_approved_emails(fpr).await?;
 
     let deletion_allowed = match deletion_config {
         DeletionConfig::Always() => true,
         DeletionConfig::Never() => false,
     };
 
-    let stored_revocations = get_stored_revocations(submitter_db, fpr)
+    let stored_revocations = submitter_db
+        .get_stored_revocations(fpr)
         .await?
         .into_iter()
         .chain(keystore.get_stored_revocations(fpr).await?)
@@ -408,7 +410,7 @@ pub async fn get_key_status(
 pub async fn authenticated_download(
     signed_management_token: SignedToken<'_, ManagementToken>,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
 ) -> Result<Cert, CustomError> {
     let management_token = signed_management_token.verify(token_key)?;
@@ -425,10 +427,10 @@ pub async fn authenticated_download(
 async fn get_published_and_pending_cert(
     fpr: &Fingerprint,
     keystore: &(impl KeyStore + ?Sized),
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
 ) -> Result<(Option<Cert>, Option<Cert>), CustomError> {
     let published_cert = keystore.get_by_fpr(fpr).await?;
-    let pending_cert = get_pending_cert(submitter_db, fpr).await?;
+    let pending_cert = submitter_db.get_pending_cert_by_fpr(fpr).await?;
     Ok(match (published_cert, pending_cert) {
         (Some(publ), Some(pend)) => {
             let pending_cert: Cert = KeyFilterApplier::from(pend)

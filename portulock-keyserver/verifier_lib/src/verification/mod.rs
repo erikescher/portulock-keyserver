@@ -4,7 +4,7 @@
  */
 
 use base64::DecodeError;
-use chrono::NaiveDateTime;
+use challenges::EmailVerificationChallenge;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
 use serde::{Deserialize, Serialize};
@@ -12,9 +12,7 @@ use shared::errors::CustomError;
 use shared::types::Email;
 use tracing::info;
 
-use crate::db::{
-    get_pending_cert, get_stored_revocations, store_verified_email, store_verified_name, EmailVerificationChallenge,
-};
+use crate::db_new::DBWrapper;
 use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
@@ -23,7 +21,6 @@ use crate::verification::sso::{AuthChallengeData, AuthSystem, VerifiedSSOClaims}
 use crate::verification::tokens::{
     EmailVerificationToken, NameVerificationToken, SignedEmailVerificationToken, SignedNameVerificationToken,
 };
-use crate::SubmitterDBConn;
 
 #[tracing::instrument]
 pub async fn verify_email_request(
@@ -41,51 +38,47 @@ pub async fn verify_email_request(
 #[tracing::instrument]
 pub async fn verify_email(
     email_token: SignedEmailVerificationToken,
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     keystore: &(impl KeyStore + ?Sized),
 ) -> Result<(), VerifierError> {
     let email_token = email_token.verify(token_key)?;
     let fpr = email_token.fpr.as_str();
-    store_verified_email(
-        submitter_db,
-        fpr,
-        email_token.email.as_str(),
-        NaiveDateTime::from_timestamp(email_token.exp as i64, 0),
-    )
-    .await?;
+    submitter_db
+        .store_approved_email(
+            &Email::parse(email_token.email.as_str())?,
+            &Fingerprint::from_hex(fpr)?,
+            email_token.exp,
+        )
+        .await?;
     trigger_certification_and_publishing(fpr, submitter_db, keystore).await
 }
 
 #[tracing::instrument]
 pub async fn verify_name(
     name_token: SignedNameVerificationToken,
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     keystore: &(impl KeyStore + ?Sized),
 ) -> Result<(), VerifierError> {
     let name_token = name_token.verify(token_key)?;
     let fpr = name_token.fpr.as_str();
 
-    store_verified_name(
-        submitter_db,
-        fpr,
-        name_token.name.as_str(),
-        NaiveDateTime::from_timestamp(name_token.exp as i64, 0),
-    )
-    .await?;
+    submitter_db
+        .store_approved_name(name_token.name.as_str(), &Fingerprint::from_hex(fpr)?, name_token.exp)
+        .await?;
 
     trigger_certification_and_publishing(fpr, submitter_db, keystore).await
 }
 
 pub async fn trigger_certification_and_publishing(
     fpr: &str,
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     keystore: &(impl KeyStore + ?Sized),
 ) -> Result<(), VerifierError> {
     info!("Triggering Certification and Publishing: fpr={}", fpr);
     let fpr = Fingerprint::from_hex(fpr).map_err(CustomError::from)?;
-    let pending_cert = get_pending_cert(submitter_db, &fpr).await?;
+    let pending_cert = submitter_db.get_pending_cert_by_fpr(&fpr).await?;
     match pending_cert {
         None => {
             info!("No pending Cert found!")
@@ -98,7 +91,9 @@ pub async fn trigger_certification_and_publishing(
                 certify_and_publish_approved_cert(keystore, approved_cert.clone()).await?;
 
                 if keystore.can_store_revocations_without_publishing() {
-                    let stored_revocations = get_stored_revocations(submitter_db, &approved_cert.fingerprint()).await?;
+                    let stored_revocations = submitter_db
+                        .get_stored_revocations(&approved_cert.fingerprint())
+                        .await?;
                     keystore
                         .store_revocations_without_publishing(&approved_cert, stored_revocations)
                         .await?;
@@ -109,6 +104,7 @@ pub async fn trigger_certification_and_publishing(
     Ok(())
 }
 
+pub mod challenges;
 pub mod sso;
 pub mod tokens;
 

@@ -6,12 +6,12 @@
 use mailer::Mailer;
 use sequoia_openpgp::Cert;
 
-use crate::db::VerificationChallenge;
+use crate::db_new::DBWrapper;
 use crate::errors::VerifierError;
 use crate::key_storage::KeyStore;
 use crate::utils_verifier::expiration::ExpirationConfig;
+use crate::verification::challenges::VerificationChallenge;
 use crate::verification::TokenKey;
-use crate::SubmitterDBConn;
 
 mod internal_submission;
 pub mod mailer;
@@ -41,7 +41,7 @@ impl SubmissionConfig {
 
 #[tracing::instrument]
 pub async fn submit_keys(
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     mailer: &dyn Mailer,
     submission_config: &SubmissionConfig,
     expiration_config: &ExpirationConfig,

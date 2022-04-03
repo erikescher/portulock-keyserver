@@ -6,6 +6,10 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
+#[macro_use]
 extern crate rocket;
 
 use std::collections::HashMap;
@@ -19,8 +23,9 @@ use rocket::Rocket;
 use rocket_contrib::templates::Template;
 use shared::utils;
 use shared::utils::armor;
+use tracing::info;
 use utils::async_helper::AsyncHelper;
-use verifier_lib::db::perform_migrations;
+use verifier_lib::db_new::DBWrapper;
 use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
 use verifier_lib::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use verifier_lib::management::random_string;
@@ -34,13 +39,16 @@ use verifier_lib::DeletionConfig;
 
 use crate::holders::{ExternalURLHolder, InternalSecretHolder, KeyStoreHolder, MailerHolder};
 
+mod db;
 mod holders;
 mod internal_endpoint;
 mod management_endpoint;
 mod submission_endpoint;
 mod verification_endpoint;
 
-pub use verifier_lib::SubmitterDBConn;
+use db::SubmitterDBConn;
+
+use crate::db::diesel_sqlite::DieselSQliteDB;
 
 #[tracing::instrument]
 fn main() {
@@ -225,7 +233,11 @@ fn main() {
         }))
         .attach(AdHoc::on_launch("Migrations", |rocket: &Rocket| {
             let db_conn = SubmitterDBConn::get_one(rocket).expect("Failed to get db connection for migrations.");
-            perform_migrations(&db_conn);
+            let submitter_db = DBWrapper {
+                db: &DieselSQliteDB { conn: &db_conn },
+            };
+            info!("performing DB migrations");
+            submitter_db.migrate().expect("DB Migrations failed!");
         }));
 
     let port = rocket.config().port;

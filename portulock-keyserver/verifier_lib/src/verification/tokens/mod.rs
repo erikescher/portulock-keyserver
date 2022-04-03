@@ -9,8 +9,8 @@ use jsonwebtoken::{Header, Validation};
 use serde::{Deserialize, Serialize};
 use shared::errors::CustomError;
 
-use crate::db::EmailVerificationChallenge;
 use crate::utils_verifier::expiration::ExpirationConfig;
+use crate::verification::challenges::EmailVerificationChallenge;
 use crate::verification::TokenKey;
 
 #[derive(Debug)]

@@ -12,9 +12,9 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, Message, SmtpTransport, Transport};
 use shared::types::Email;
 
-use crate::db::NameVerificationChallenge;
 use crate::errors::VerifierError;
 use crate::management::ManagementToken;
+use crate::verification::challenges::NameVerificationChallenge;
 use crate::verification::tokens::{SignedEmailVerificationToken, SignedToken};
 
 #[async_trait]

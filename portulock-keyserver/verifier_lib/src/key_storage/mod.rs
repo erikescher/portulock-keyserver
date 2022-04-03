@@ -13,18 +13,17 @@ use shared::errors::CustomError;
 use shared::filtering::applier::KeyFilterApplier;
 use shared::filtering::filters::{KeyFilterUIDsMatchingEmails, KeyFilterUIDsMatchingNames};
 
-use crate::db::{get_approved_emails, get_approved_names};
+use crate::db_new::DBWrapper;
 use crate::errors::VerifierError;
 use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
-use crate::SubmitterDBConn;
 
 pub mod multi_keystore;
 pub mod openpgp_ca_lib;
 
 #[tracing::instrument]
-pub async fn filter_cert_by_approved_uids(submitter_db: &SubmitterDBConn, cert: Cert) -> Result<Cert, VerifierError> {
-    let approved_names = get_approved_names(submitter_db, &cert.fingerprint()).await?;
-    let approved_emails = get_approved_emails(submitter_db, &cert.fingerprint()).await?;
+pub async fn filter_cert_by_approved_uids(submitter_db: &DBWrapper<'_>, cert: Cert) -> Result<Cert, VerifierError> {
+    let approved_names = submitter_db.get_approved_names(&cert.fingerprint()).await?;
+    let approved_emails = submitter_db.get_approved_emails(&cert.fingerprint()).await?;
     println!(
         "Filtering Cert by approved UIDs: names={:?} emails={:?}",
         approved_names, approved_emails

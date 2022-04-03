@@ -15,21 +15,19 @@ use shared::filtering::filters::{
 use shared::types::Email;
 use shared::utils::any_email;
 
-use crate::db::{
-    create_verification_challenges, get_pending_cert, store_uids_pending_verification, VerificationChallenge,
-};
+use crate::db_new::DBWrapper;
 use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
 use crate::submission::SubmissionConfig;
 use crate::utils_verifier::expiration::ExpirationConfig;
+use crate::verification::challenges::{create_verification_challenges, VerificationChallenge};
 use crate::verification::tokens::EmailVerificationToken;
 use crate::verification::{trigger_certification_and_publishing, TokenKey};
-use crate::SubmitterDBConn;
 
 #[tracing::instrument]
 pub async fn submit_key(
-    submitter_db: &SubmitterDBConn,
+    submitter_db: &DBWrapper<'_>,
     mailer: &dyn Mailer,
     submission_config: &SubmissionConfig,
     expiration_config: &ExpirationConfig,
@@ -61,7 +59,7 @@ pub async fn submit_key(
     trigger_certification_and_publishing(cert.fingerprint().to_hex().as_str(), submitter_db, &*keystore).await?;
 
     // Skip packets that are already pending verification.
-    let cert = match get_pending_cert(submitter_db, &cert.fingerprint()).await? {
+    let cert = match submitter_db.get_pending_cert_by_fpr(&cert.fingerprint()).await? {
         None => cert,
         Some(pc) => KeyFilterApplier::from(cert)
             .apply(KeyFilterSubtractingPackets::from_key(&pc))
@@ -75,7 +73,9 @@ pub async fn submit_key(
 
     // Issue verification challenges for the remaining packets and store them.
     // They will be published as the verification challenges are completed.
-    store_uids_pending_verification(submitter_db, expiration_config, cert.clone()).await?;
+    submitter_db
+        .store_pending_key(&cert, expiration_config.expiration_u64())
+        .await?;
     create_and_send_challenges(cert, mailer, token_key, expiration_config).await
 }
 

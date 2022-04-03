@@ -3799,7 +3799,10 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 name = "verifier"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
+ "diesel",
+ "diesel_migrations",
  "num-traits",
  "reqwest 0.10.10",
  "rocket",
@@ -3821,8 +3824,6 @@ dependencies = [
  "async-trait",
  "base64 0.13.0",
  "chrono",
- "diesel",
- "diesel_migrations",
  "jsonwebtoken",
  "lettre",
  "num-traits",
@@ -3831,8 +3832,6 @@ dependencies = [
  "openssl",
  "rand 0.8.5",
  "reqwest 0.10.10",
- "rocket",
- "rocket_contrib",
  "rusqlite",
  "samael",
  "sequoia-net",

@@ -8,13 +8,15 @@ use rocket::State;
 use shared::errors::CustomError;
 use shared::utils::armor;
 use shared::utils::async_helper::AsyncHelper;
+use verifier_lib::db_new::DBWrapper;
 use verifier_lib::submission::submit_keys;
 use verifier_lib::submission::SubmissionConfig;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification::TokenKey;
 
+use crate::db::diesel_sqlite::DieselSQliteDB;
+use crate::db::SubmitterDBConn;
 use crate::holders::{KeyStoreHolder, MailerHolder};
-use crate::SubmitterDBConn;
 
 #[derive(FromForm, Debug)]
 pub struct KeySubmission {
@@ -25,7 +27,7 @@ pub struct KeySubmission {
 #[allow(clippy::too_many_arguments)]
 #[tracing::instrument]
 pub fn submission(
-    submission_db: SubmitterDBConn,
+    submitter_db: SubmitterDBConn,
     mailer: State<MailerHolder>,
     submission_config: State<SubmissionConfig>,
     expiration_config: State<ExpirationConfig>,
@@ -46,11 +48,14 @@ pub fn submission(
     let mailer = mailer.get_mailer();
     let certs = armor::parse_certs(keytext)?;
     let token_key = token_key.inner();
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     let result = AsyncHelper::new()
         .expect("Failed to create async runtime.")
         .wait_for(submit_keys(
-            &submission_db,
+            &submitter_db,
             mailer,
             submission_config,
             expiration_config,

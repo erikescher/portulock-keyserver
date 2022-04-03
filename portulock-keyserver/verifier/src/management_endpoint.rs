@@ -13,14 +13,16 @@ use shared::types::Email;
 use shared::utils::armor::{export_armored_cert, parse_certs};
 use shared::utils::async_helper::AsyncHelper;
 use shared::utils::rocket_helpers::LimitedString;
+use verifier_lib::db_new::DBWrapper;
 use verifier_lib::management::{KeyStatus, ManagementToken};
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification::tokens::SignedToken;
 use verifier_lib::verification::TokenKey;
 use verifier_lib::{management, DeletionConfig};
 
+use crate::db::diesel_sqlite::DieselSQliteDB;
+use crate::db::SubmitterDBConn;
 use crate::holders::{KeyStoreHolder, MailerHolder};
-use crate::SubmitterDBConn;
 
 #[get("/manage/delete?<management_token>")]
 #[tracing::instrument]
@@ -34,6 +36,9 @@ pub fn delete_key(
     let keystore = keystore.inner().get_key_store();
     let management_token = SignedToken::from(management_token);
     let token_key = token_key.inner();
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
         .wait_for(management::delete_key(
@@ -59,6 +64,9 @@ pub fn challenge_decrypt(
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
@@ -108,6 +116,9 @@ pub fn challenge_email_all_keys(
     let expiration_config = expiration_config.inner();
     let mailer = mailer.inner().get_mailer();
     let keystore = keystore.inner().get_key_store();
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
         .wait_for(management::challenge_email_all_keys(
@@ -137,6 +148,9 @@ pub fn challenge_email(
     let expiration_config = expiration_config.inner();
     let mailer = mailer.inner().get_mailer();
     let keystore = keystore.inner().get_key_store();
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
         .wait_for(management::challenge_email(
@@ -162,6 +176,9 @@ pub fn store_revocations(
     let keystore = keystore.inner().get_key_store();
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
     let revocations: Vec<Signature> = management::revocations_from_string(revocations.into())?;
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
@@ -186,6 +203,9 @@ pub fn status_page(
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token: SignedToken<ManagementToken> = SignedToken::from(management_token);
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     let key_status = AsyncHelper::new().expect("Failed to create async runtime.").wait_for(
         management::get_key_status_authenticated(
@@ -211,6 +231,9 @@ pub fn status_page_json(
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token = SignedToken::from(management_token);
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     let key_status = AsyncHelper::new().expect("Failed to create async runtime.").wait_for(
         management::get_key_status_authenticated(
@@ -235,6 +258,9 @@ pub fn authenticated_download(
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token = SignedToken::from(management_token);
+    let submitter_db = DBWrapper {
+        db: &DieselSQliteDB { conn: &submitter_db.0 },
+    };
 
     let cert =
         AsyncHelper::new()

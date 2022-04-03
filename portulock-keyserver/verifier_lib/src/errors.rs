@@ -118,20 +118,14 @@ impl From<lettre::address::AddressError> for VerifierError {
     }
 }
 
-impl From<diesel::result::Error> for VerifierError {
-    fn from(e: diesel::result::Error) -> Self {
-        VerifierError::anyhow(anyhow!(e))
-    }
-}
-
-impl From<rocket::http::uri::Error<'_>> for VerifierError {
-    fn from(e: rocket::http::uri::Error) -> Self {
-        VerifierError::str(format!("{:?}", e).as_str())
-    }
-}
-
 impl From<openidconnect::url::ParseError> for VerifierError {
     fn from(e: openidconnect::url::ParseError) -> Self {
         VerifierError::anyhow(anyhow!(e))
+    }
+}
+
+impl From<anyhow::Error> for VerifierError {
+    fn from(e: anyhow::Error) -> Self {
+        VerifierError::anyhow(e)
     }
 }
