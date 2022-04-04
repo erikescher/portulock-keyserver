@@ -43,6 +43,7 @@ mod db;
 mod holders;
 mod internal_endpoint;
 mod management_endpoint;
+pub mod rocket_helpers;
 mod submission_endpoint;
 mod verification_endpoint;
 

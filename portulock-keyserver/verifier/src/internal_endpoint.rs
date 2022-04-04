@@ -6,12 +6,12 @@
 use anyhow::anyhow;
 use rocket::State;
 use shared::utils::async_helper::AsyncHelper;
-use shared::utils::rocket_helpers::LimitedString;
 use verifier_lib::db_new::DBWrapper;
 
 use crate::db::diesel_sqlite::DieselSQliteDB;
 use crate::db::SubmitterDBConn;
 use crate::holders::InternalSecretHolder;
+use crate::rocket_helpers::LimitedString;
 
 #[post("/internal/db_cleanup", data = "<secret>")]
 #[tracing::instrument]

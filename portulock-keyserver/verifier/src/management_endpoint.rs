@@ -12,7 +12,6 @@ use sequoia_openpgp::Fingerprint;
 use shared::types::Email;
 use shared::utils::armor::{export_armored_cert, parse_certs};
 use shared::utils::async_helper::AsyncHelper;
-use shared::utils::rocket_helpers::LimitedString;
 use verifier_lib::db_new::DBWrapper;
 use verifier_lib::management::{KeyStatus, ManagementToken};
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
@@ -23,6 +22,7 @@ use verifier_lib::{management, DeletionConfig};
 use crate::db::diesel_sqlite::DieselSQliteDB;
 use crate::db::SubmitterDBConn;
 use crate::holders::{KeyStoreHolder, MailerHolder};
+use crate::rocket_helpers::LimitedString;
 
 #[get("/manage/delete?<management_token>")]
 #[tracing::instrument]
