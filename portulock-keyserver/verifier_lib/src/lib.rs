@@ -1,15 +1,12 @@
 use std::fmt::Debug;
 
-use crate::errors::VerifierError;
 use crate::verification::sso::oidc_verification::OidcVerifier;
 use crate::verification::sso::saml_verification::SamlVerifier;
 use crate::verification::sso::AuthSystem;
 use crate::verification::SSOConfigEntry;
 
 pub mod certs;
-pub mod db;
 pub mod db_new;
-pub mod errors;
 pub mod key_storage;
 pub mod management;
 pub mod submission;
@@ -22,7 +19,7 @@ pub enum DeletionConfig {
     Never(),
 }
 
-pub async fn create_auth_system(config_entry: &SSOConfigEntry) -> Result<AuthSystem, VerifierError> {
+pub async fn create_auth_system(config_entry: &SSOConfigEntry) -> Result<AuthSystem, anyhow::Error> {
     Ok(match config_entry {
         SSOConfigEntry::Oidc(oidc) => AuthSystem::Oidc(
             OidcVerifier::new(

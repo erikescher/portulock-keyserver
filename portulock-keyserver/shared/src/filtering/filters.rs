@@ -16,7 +16,6 @@ use sequoia_openpgp::packet::{Key, Signature, Tag, Unknown, UserAttribute, UserI
 use sequoia_openpgp::types::HashAlgorithm;
 use sequoia_openpgp::{Cert, KeyHandle, Packet};
 
-use crate::errors::CustomError;
 use crate::filtering::applier::{KeyFilter, KeyFilterApplier};
 
 pub struct KeyFilterStrippingBadSigs {}
@@ -405,10 +404,10 @@ fn get_attested_hashes<'a>(uida: &'a UserIDAmalgamation) -> HashMap<HashAlgorith
     map
 }
 
-fn calculate_attestation_hash(certification: &Signature, hash_algo: &HashAlgorithm) -> Result<Vec<u8>, CustomError> {
+fn calculate_attestation_hash(certification: &Signature, hash_algo: &HashAlgorithm) -> Result<Vec<u8>, anyhow::Error> {
     let mut hash = hash_algo.context()?;
     certification.hash_for_confirmation(&mut hash);
-    Ok(hash.into_digest()?)
+    hash.into_digest()
 }
 
 fn check_certification_attested(

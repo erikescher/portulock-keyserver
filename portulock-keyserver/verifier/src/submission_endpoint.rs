@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use anyhow::anyhow;
 use rocket::request::Form;
 use rocket::State;
-use shared::errors::CustomError;
 use shared::utils::armor;
 use shared::utils::async_helper::AsyncHelper;
 use verifier_lib::db_new::DBWrapper;
@@ -35,7 +35,7 @@ pub fn submission(
     submission: Form<KeySubmission>,
     keystore: State<KeyStoreHolder>,
     no_mails: Option<bool>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let key_submission = submission.into_inner();
     let keytext = key_submission.keytext.as_str();
     let submission_config = submission_config.inner();
@@ -64,5 +64,5 @@ pub fn submission(
             &*keystore,
         ))?;
 
-    serde_json::to_string(&result).map_err(CustomError::from)
+    serde_json::to_string(&result).map_err(|e| anyhow!(e))
 }

@@ -8,12 +8,10 @@ use challenges::EmailVerificationChallenge;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
 use serde::{Deserialize, Serialize};
-use shared::errors::CustomError;
 use shared::types::Email;
 use tracing::info;
 
 use crate::db_new::DBWrapper;
-use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
 use crate::utils_verifier::expiration::ExpirationConfig;
@@ -29,7 +27,7 @@ pub async fn verify_email_request(
     token_key: &TokenKey,
     expiration_config: &ExpirationConfig,
     mailer: &dyn Mailer,
-) -> Result<(), VerifierError> {
+) -> Result<(), anyhow::Error> {
     let challenge = EmailVerificationChallenge::new(fpr, email);
     let challenge = EmailVerificationToken::from(&challenge, expiration_config).sign(token_key);
     mailer.send_signed_email_challenge(&challenge, email).await
@@ -41,7 +39,7 @@ pub async fn verify_email(
     submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<(), VerifierError> {
+) -> Result<(), anyhow::Error> {
     let email_token = email_token.verify(token_key)?;
     let fpr = email_token.fpr.as_str();
     submitter_db
@@ -60,7 +58,7 @@ pub async fn verify_name(
     submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<(), VerifierError> {
+) -> Result<(), anyhow::Error> {
     let name_token = name_token.verify(token_key)?;
     let fpr = name_token.fpr.as_str();
 
@@ -75,9 +73,9 @@ pub async fn trigger_certification_and_publishing(
     fpr: &str,
     submitter_db: &DBWrapper<'_>,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<(), VerifierError> {
+) -> Result<(), anyhow::Error> {
     info!("Triggering Certification and Publishing: fpr={}", fpr);
-    let fpr = Fingerprint::from_hex(fpr).map_err(CustomError::from)?;
+    let fpr = Fingerprint::from_hex(fpr)?;
     let pending_cert = submitter_db.get_pending_cert_by_fpr(&fpr).await?;
     match pending_cert {
         None => {
@@ -168,7 +166,7 @@ pub struct SAMLConfigEntry {
 pub async fn verify_name_start(
     fpr: Fingerprint,
     auth_system: &AuthSystem,
-) -> Result<(String, AuthChallengeCookie), CustomError> {
+) -> Result<(String, AuthChallengeCookie), anyhow::Error> {
     let (auth_url, auth_challenge) = auth_system.get_auth_url()?;
 
     let cookie_data = AuthChallengeCookie {
@@ -225,7 +223,7 @@ pub async fn verify_name_auth_system(
     auth_system: &AuthSystem,
     token_key: &TokenKey,
     expiration_config: &ExpirationConfig,
-) -> Result<(Vec<SignedNameVerificationToken>, Vec<SignedEmailVerificationToken>), CustomError> {
+) -> Result<(Vec<SignedNameVerificationToken>, Vec<SignedEmailVerificationToken>), anyhow::Error> {
     let auth_challenge = auth_challenge_cookie.auth_challenge;
     let fpr = auth_challenge_cookie.fpr;
     let claims = auth_system

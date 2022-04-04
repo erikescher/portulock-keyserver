@@ -6,10 +6,10 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
 use sequoia_openpgp::{Cert, Fingerprint, KeyHandle, KeyID};
-use shared::errors::CustomError;
 use shared::filtering::filter_certs;
 use shared::types::Email;
 use shared::utils::merge_certs;
@@ -21,7 +21,7 @@ mod email;
 mod handle;
 pub mod keyserver;
 
-pub async fn lookup(config: &LookupConfig, locator: SearchString) -> Result<Vec<Cert>, CustomError> {
+pub async fn lookup(config: &LookupConfig, locator: SearchString) -> Result<Vec<Cert>, anyhow::Error> {
     let certs = match locator {
         SearchString::ByKeyID(k) => {
             handle::lookup_handle(config, &KeyHandle::KeyID(KeyID::from_str(k.as_str())?)).await
@@ -58,13 +58,13 @@ pub struct LookupDomainConfig {
 }
 
 #[allow(dead_code)]
-pub async fn lookup_by_fpr(lookup_config: &LookupConfig, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
+pub async fn lookup_by_fpr(lookup_config: &LookupConfig, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error> {
     let locator = SearchString::ByFingerprint(fpr.to_string());
     let mut existing_certs = lookup(lookup_config, locator).await?;
     match existing_certs.len() {
         0 => Ok(None),
         1 => Ok(existing_certs.pop()),
-        _ => Err(CustomError::String(format!("Fingerprint collision occurred! {}", fpr))),
+        _ => Err(anyhow!("Fingerprint collision occurred! {}", fpr)),
     }
 }
 
@@ -79,23 +79,23 @@ pub enum SearchString {
 }
 
 impl SearchString {
-    fn from_string(str: &str) -> Result<Self, String> {
+    fn from_string(str: &str) -> Result<Self, anyhow::Error> {
         match Email::parse(str) {
             Ok(e) => Ok(SearchString::ByEmail(e)),
             Err(_) => {
                 let str = str.to_ascii_uppercase();
                 let str = str.trim_start_matches("0X");
                 let len = hex::decode(str)
-                    .expect("Expected Fingerprint or KeyID but got invalid hex string.")
+                    .map_err(|_| anyhow!("Expected Fingerprint or KeyID but got invalid hex string."))?
                     .len()
                     * 2;
                 match len {
-                    8 => Err("32bit KeyIDs are not supported.".to_string()),
+                    8 => Err(anyhow!("32bit KeyIDs are not supported.")),
                     16 => Ok(SearchString::ByKeyID(str.to_string() as KeyIDAlias)),
                     // 32 => Ok(SearchString::ByFingerprint(str.to_string() as Fingerprint)),
-                    32 => Err("128bit V3 Fingerprints are not supported".to_string()),
+                    32 => Err(anyhow!("128bit V3 Fingerprints are not supported")),
                     40 => Ok(SearchString::ByFingerprint(str.to_string() as FingerprintAlias)),
-                    _ => Err("Hex string of unexpected length".to_string()),
+                    _ => Err(anyhow!("Hex string of unexpected length")),
                 }
             }
         }
@@ -112,12 +112,12 @@ impl SearchString {
 }
 
 impl<'v> FromFormValue<'v> for SearchString {
-    type Error = String;
+    type Error = anyhow::Error;
 
     fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
         match form_value.url_decode() {
             Ok(v) => SearchString::from_string(v.as_str()),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(anyhow!(e)),
         }
     }
 }

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use anyhow::anyhow;
 use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::Cert;
-use shared::errors::CustomError;
 use shared::filtering::applier::{KeyFilter, KeyFilterApplier};
 use shared::filtering::filter_cert;
 use shared::filtering::filters::KeyFilterSubtractingUserIDs;
@@ -16,7 +16,6 @@ use shared::types::Email;
 use shared::utils::any_email;
 
 use crate::db_new::DBWrapper;
-use crate::errors::VerifierError;
 use crate::key_storage::{certify_and_publish_approved_cert, filter_cert_by_approved_uids, KeyStore};
 use crate::submission::mailer::Mailer;
 use crate::submission::SubmissionConfig;
@@ -34,7 +33,7 @@ pub async fn submit_key(
     token_key: &TokenKey,
     cert: Cert,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<Vec<VerificationChallenge>, VerifierError> {
+) -> Result<Vec<VerificationChallenge>, anyhow::Error> {
     println!("SUBMIT_KEY raw_submission: {:?}", cert);
     let cert = filter_unwanted_data(cert, submission_config, &*keystore).await?;
     println!("SUBMIT_KEY filtered for unwanted data: {:?}", cert);
@@ -84,7 +83,7 @@ async fn filter_unwanted_data(
     cert: Cert,
     submission_config: &SubmissionConfig,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<Cert, CustomError> {
+) -> Result<Cert, anyhow::Error> {
     // Filter undesired data.
     let cert = filter_cert(&cert);
 
@@ -113,13 +112,13 @@ async fn create_and_send_challenges(
     mailer: &dyn Mailer,
     token_key: &TokenKey,
     expiration_config: &ExpirationConfig,
-) -> Result<Vec<VerificationChallenge>, VerifierError> {
+) -> Result<Vec<VerificationChallenge>, anyhow::Error> {
     let verification_challenges = create_verification_challenges(cert.clone());
     let primary_mail = any_email(&cert);
     for challenge in &verification_challenges {
         match challenge {
             VerificationChallenge::Name(nvc) => match primary_mail {
-                None => return Err("Found no email to send NameVerificationChallenge to.".into()),
+                None => return Err(anyhow!("Found no email to send NameVerificationChallenge to.")),
                 Some(ref pm) => mailer.send_name_challenge(nvc, pm).await?,
             },
             VerificationChallenge::Email(evc) => {

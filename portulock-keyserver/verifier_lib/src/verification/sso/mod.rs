@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use anyhow::anyhow;
 use reqwest::Url;
 
+use crate::verification::sso::oidc_verification::OidcVerifier;
 use crate::verification::sso::saml_verification::SamlVerifier;
-use crate::{OidcVerifier, VerifierError};
 
 pub mod oidc_verification;
 pub mod saml_verification;
@@ -18,7 +19,7 @@ pub enum AuthSystem {
 }
 
 impl AuthSystem {
-    pub fn get_auth_url(&self) -> Result<(Url, AuthChallengeData), VerifierError> {
+    pub fn get_auth_url(&self) -> Result<(Url, AuthChallengeData), anyhow::Error> {
         match self {
             AuthSystem::Saml(saml) => saml.get_auth_url(),
             AuthSystem::Oidc(oidc) => oidc.get_auth_url(),
@@ -29,11 +30,11 @@ impl AuthSystem {
         auth_challenge: AuthChallengeData,
         auth_response: &str,
         auth_state: Option<String>,
-    ) -> Result<VerifiedSSOClaims, VerifierError> {
+    ) -> Result<VerifiedSSOClaims, anyhow::Error> {
         match self {
             AuthSystem::Saml(saml) => saml.verify_and_extract_claims(auth_challenge, auth_response).await,
             AuthSystem::Oidc(oidc) => match auth_state {
-                None => Err("OIDC requires AuthState!".into()),
+                None => Err(anyhow!("OIDC requires AuthState!")),
                 Some(auth_state) => {
                     oidc.verify_and_extract_claims(auth_challenge, auth_response, auth_state.as_str())
                         .await

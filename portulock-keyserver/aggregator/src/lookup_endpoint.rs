@@ -4,7 +4,6 @@
  */
 
 use rocket::State;
-use shared::errors::CustomError;
 use shared::utils::armor::export_armored_certs;
 use shared::utils::async_helper::AsyncHelper;
 
@@ -15,7 +14,7 @@ use crate::lookup::{LookupConfig, SearchString};
 #[tracing::instrument]
 // parameters "exact" and "fingerprint" are implied and therefore ignored
 // The "option(s)"/operation is assumed to be "GET". Index and VIndex are treated the same as GET operations.
-pub fn lookup(search: SearchString, lookup_config: State<'_, LookupConfig>) -> Result<String, CustomError> {
+pub fn lookup(search: SearchString, lookup_config: State<'_, LookupConfig>) -> Result<String, anyhow::Error> {
     let lookup_config = lookup_config.inner();
 
     let certs = AsyncHelper::new()

@@ -7,7 +7,6 @@ use std::marker::PhantomData;
 
 use jsonwebtoken::{Header, Validation};
 use serde::{Deserialize, Serialize};
-use shared::errors::CustomError;
 
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::challenges::EmailVerificationChallenge;
@@ -19,7 +18,7 @@ pub struct SignedEmailVerificationToken {
 }
 
 impl SignedEmailVerificationToken {
-    pub fn verify(&self, token_key: &TokenKey) -> Result<EmailVerificationToken, CustomError> {
+    pub fn verify(&self, token_key: &TokenKey) -> Result<EmailVerificationToken, anyhow::Error> {
         let validation = Validation {
             validate_nbf: true,
             algorithms: vec![token_key.algorithm()],
@@ -45,7 +44,7 @@ pub struct SignedNameVerificationToken {
 }
 
 impl SignedNameVerificationToken {
-    pub fn verify(&self, token_key: &TokenKey) -> Result<NameVerificationToken, CustomError> {
+    pub fn verify(&self, token_key: &TokenKey) -> Result<NameVerificationToken, anyhow::Error> {
         let validation = Validation {
             validate_nbf: true,
             algorithms: vec![token_key.algorithm()],
@@ -155,7 +154,7 @@ impl<'a, T> SignedToken<'a, T>
 where
     T: Serialize + for<'d> Deserialize<'d>,
 {
-    pub fn verify(&self, token_key: &TokenKey) -> Result<T, CustomError> {
+    pub fn verify(&self, token_key: &TokenKey) -> Result<T, anyhow::Error> {
         let validation = Validation {
             validate_nbf: true,
             algorithms: vec![token_key.algorithm()],

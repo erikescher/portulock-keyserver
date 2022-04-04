@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use anyhow::anyhow;
 use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::templates::Template;
 use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::Fingerprint;
-use shared::errors::CustomError;
 use shared::types::Email;
 use shared::utils::armor::{export_armored_cert, parse_certs};
 use shared::utils::async_helper::AsyncHelper;
@@ -32,7 +32,7 @@ pub fn delete_key(
     keystore: State<'_, KeyStoreHolder>,
     submitter_db: SubmitterDBConn,
     deletion_config: State<DeletionConfig>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let management_token = SignedToken::from(management_token);
     let token_key = token_key.inner();
@@ -59,7 +59,7 @@ pub fn challenge_decrypt(
     expiration_config: State<ExpirationConfig>,
     keystore: State<'_, KeyStoreHolder>,
     submitter_db: SubmitterDBConn,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
@@ -85,12 +85,12 @@ pub fn challenge_decrypt_with_key(
     public_key: LimitedString,
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
     let public_key = String::from(public_key);
     let public_key = parse_certs(public_key.as_str())?;
-    let public_key = public_key.first().ok_or("No certificate provided!")?;
+    let public_key = public_key.first().ok_or_else(|| anyhow!("No certificate provided!"))?;
 
     AsyncHelper::new()
         .expect("Failed to create async runtime.")
@@ -110,7 +110,7 @@ pub fn challenge_email_all_keys(
     mailer: State<MailerHolder>,
     keystore: State<'_, KeyStoreHolder>,
     submitter_db: SubmitterDBConn,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let email = Email::parse(email.as_str())?;
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
@@ -141,7 +141,7 @@ pub fn challenge_email(
     mailer: State<MailerHolder>,
     keystore: State<'_, KeyStoreHolder>,
     submitter_db: SubmitterDBConn,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
     let email = email.and_then(|e| Email::parse_option(e.as_str()));
     let token_key = token_key.inner();
@@ -172,7 +172,7 @@ pub fn store_revocations(
     keystore: State<'_, KeyStoreHolder>,
     submitter_db: SubmitterDBConn,
     expiration_config: State<ExpirationConfig>,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
     let revocations: Vec<Signature> = management::revocations_from_string(revocations.into())?;
@@ -199,7 +199,7 @@ pub fn status_page(
     token_key: State<TokenKey>,
     submitter_db: SubmitterDBConn,
     deletion_config: State<DeletionConfig>,
-) -> Result<Template, CustomError> {
+) -> Result<Template, anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token: SignedToken<ManagementToken> = SignedToken::from(management_token);
@@ -227,7 +227,7 @@ pub fn status_page_json(
     token_key: State<TokenKey>,
     submitter_db: SubmitterDBConn,
     deletion_config: State<DeletionConfig>,
-) -> Result<Json<KeyStatus>, CustomError> {
+) -> Result<Json<KeyStatus>, anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token = SignedToken::from(management_token);
@@ -254,7 +254,7 @@ pub fn authenticated_download(
     keystore: State<'_, KeyStoreHolder>,
     token_key: State<TokenKey>,
     submitter_db: SubmitterDBConn,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let keystore = keystore.inner().get_key_store();
     let token_key = token_key.inner();
     let management_token = SignedToken::from(management_token);

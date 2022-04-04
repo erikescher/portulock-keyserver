@@ -12,7 +12,6 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, Message, SmtpTransport, Transport};
 use shared::types::Email;
 
-use crate::errors::VerifierError;
 use crate::management::ManagementToken;
 use crate::verification::challenges::NameVerificationChallenge;
 use crate::verification::tokens::{SignedEmailVerificationToken, SignedToken};
@@ -23,17 +22,17 @@ pub trait Mailer: Debug {
         &self,
         token: &SignedEmailVerificationToken,
         email: &Email,
-    ) -> Result<(), VerifierError>;
+    ) -> Result<(), anyhow::Error>;
     async fn send_name_challenge(
         &self,
         challenge: &NameVerificationChallenge,
         email: &Email,
-    ) -> Result<(), VerifierError>;
+    ) -> Result<(), anyhow::Error>;
     async fn send_signed_management_token(
         &self,
         token: &SignedToken<ManagementToken>,
         email: &Email,
-    ) -> Result<(), VerifierError>;
+    ) -> Result<(), anyhow::Error>;
 }
 
 pub struct SmtpMailer {
@@ -84,7 +83,7 @@ impl SmtpMailer {
         }
     }
 
-    fn send_mail(&self, email: &Email, body: &str, subject: &str) -> Result<(), VerifierError> {
+    fn send_mail(&self, email: &Email, body: &str, subject: &str) -> Result<(), anyhow::Error> {
         println!("MAILER send message: TO={}  SUBJECT={} ", email, subject);
         let message = Message::builder()
             .from(self.from.clone())
@@ -105,7 +104,7 @@ impl Mailer for SmtpMailer {
         &self,
         challenge: &SignedEmailVerificationToken,
         email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         let subject = "Verify your Email";
         let body = format!(
             "\
@@ -122,7 +121,7 @@ impl Mailer for SmtpMailer {
         &self,
         challenge: &NameVerificationChallenge,
         email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         println!("sending to <{}>: {:?}", email, challenge);
         let subject = "Verify your Name";
         let body = format!(
@@ -144,7 +143,7 @@ impl Mailer for SmtpMailer {
         &self,
         token: &SignedToken<ManagementToken>,
         email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         let subject = "Key Status Page";
         let body = format!(
             "\
@@ -167,21 +166,21 @@ impl Mailer for NoopMailer {
         &self,
         _challenge: &SignedEmailVerificationToken,
         _email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         Ok(())
     }
     async fn send_name_challenge(
         &self,
         _challenge: &NameVerificationChallenge,
         _email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         Ok(())
     }
     async fn send_signed_management_token(
         &self,
         _token: &SignedToken<ManagementToken>,
         _email: &Email,
-    ) -> Result<(), VerifierError> {
+    ) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }

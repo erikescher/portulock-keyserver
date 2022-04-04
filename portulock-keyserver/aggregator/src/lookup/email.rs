@@ -5,7 +5,6 @@
 
 use sequoia_openpgp::cert::prelude::UserIDAmalgamation;
 use sequoia_openpgp::Cert;
-use shared::errors::CustomError;
 use shared::filtering::filter_certs;
 use shared::types::Email;
 use shared::utils::merge_certs;
@@ -14,7 +13,7 @@ use crate::certification::CertifierFactory;
 use crate::lookup::keyserver::Keyserver;
 use crate::lookup::{LookupConfig, LookupDomainConfig};
 
-pub async fn lookup_email(config: &LookupConfig, email: &Email) -> Result<Vec<Cert>, CustomError> {
+pub async fn lookup_email(config: &LookupConfig, email: &Email) -> Result<Vec<Cert>, anyhow::Error> {
     let certs = match config.config_for_domain(email.get_domain()) {
         Some(domain_config) => lookup_email_from_lookup_domain_config(domain_config, email)
             .await
@@ -37,7 +36,7 @@ pub async fn lookup_email(config: &LookupConfig, email: &Email) -> Result<Vec<Ce
 async fn lookup_email_from_lookup_domain_config(
     lookup_domain_config: &LookupDomainConfig,
     email: &Email,
-) -> Result<Vec<Cert>, CustomError> {
+) -> Result<Vec<Cert>, anyhow::Error> {
     println!(
         "lookup_email_from_ldc ldc: {:#?} email: {}",
         lookup_domain_config, email
@@ -97,7 +96,7 @@ async fn lookup_email_from_keyservers_filtered_by_domain(
     keyservers: &[Keyserver],
     email: &Email,
     domain: &str,
-) -> Result<Vec<Cert>, CustomError> {
+) -> Result<Vec<Cert>, anyhow::Error> {
     let certs = lookup_email_from_keyservers(keyservers, email).await;
     let certs = filter_certs_by_domain(certs, domain);
     Ok(certs)
@@ -112,7 +111,7 @@ async fn lookup_email_from_keyservers(keyservers: &[Keyserver], email: &Email) -
     certs
 }
 
-async fn lookup_email_via_wkd(email: &Email) -> Result<Vec<Cert>, CustomError> {
+async fn lookup_email_via_wkd(email: &Email) -> Result<Vec<Cert>, anyhow::Error> {
     let certs = sequoia_net::wkd::get(email.to_string().as_str()).await?;
     let certs = filter_certs_by_domain(certs, email.get_domain());
     Ok(certs)

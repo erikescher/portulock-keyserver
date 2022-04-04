@@ -9,19 +9,17 @@ use async_trait::async_trait;
 use sequoia_openpgp::cert::amalgamation::UserIDAmalgamation;
 use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
-use shared::errors::CustomError;
 use shared::filtering::applier::KeyFilterApplier;
 use shared::filtering::filters::{KeyFilterUIDsMatchingEmails, KeyFilterUIDsMatchingNames};
 
 use crate::db_new::DBWrapper;
-use crate::errors::VerifierError;
 use crate::key_storage::openpgp_ca_lib::OpenPGPCALib;
 
 pub mod multi_keystore;
 pub mod openpgp_ca_lib;
 
 #[tracing::instrument]
-pub async fn filter_cert_by_approved_uids(submitter_db: &DBWrapper<'_>, cert: Cert) -> Result<Cert, VerifierError> {
+pub async fn filter_cert_by_approved_uids(submitter_db: &DBWrapper<'_>, cert: Cert) -> Result<Cert, anyhow::Error> {
     let approved_names = submitter_db.get_approved_names(&cert.fingerprint()).await?;
     let approved_emails = submitter_db.get_approved_emails(&cert.fingerprint()).await?;
     println!(
@@ -39,47 +37,41 @@ pub async fn filter_cert_by_approved_uids(submitter_db: &DBWrapper<'_>, cert: Ce
 pub async fn certify_and_publish_approved_cert(
     keystore: &(impl KeyStore + ?Sized),
     approved_cert: Cert,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     println!("Certifying and Publishing approved cert: {}", approved_cert);
     let result = keystore.store(&approved_cert).await;
-    match result.clone() {
-        Ok(_) => {
-            println!("keystore.store() successful")
-        }
-        Err(e) => println!("VERIFY_NAME_DEBUG error: {:#?}", e),
-    }
     result
 }
 
 #[async_trait]
 pub trait KeyStore: Debug {
-    async fn store(&self, cert: &Cert) -> Result<(), CustomError>;
-    async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError>;
-    async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError>;
-    async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), CustomError>;
-    async fn delete(&self, fpr: &Fingerprint) -> Result<(), CustomError>;
+    async fn store(&self, cert: &Cert) -> Result<(), anyhow::Error>;
+    async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, anyhow::Error>;
+    async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error>;
+    async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), anyhow::Error>;
+    async fn delete(&self, fpr: &Fingerprint) -> Result<(), anyhow::Error>;
     fn can_store_revocations_without_publishing(&self) -> bool;
     async fn store_revocations_without_publishing(
         &self,
         cert: &Cert,
         revocations: Vec<Signature>,
-    ) -> Result<(), CustomError>;
-    async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, CustomError>;
+    ) -> Result<(), anyhow::Error>;
+    async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, anyhow::Error>;
 }
 
 #[async_trait]
 pub trait LookupSource {
-    async fn by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError>;
-    async fn by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError>;
+    async fn by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error>;
+    async fn by_email(&self, email: &str) -> Result<Vec<Cert>, anyhow::Error>;
 }
 
 #[async_trait]
 impl LookupSource for OpenPGPCALib {
-    async fn by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
+    async fn by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error> {
         self.get_by_fpr(fpr).await
     }
 
-    async fn by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError> {
+    async fn by_email(&self, email: &str) -> Result<Vec<Cert>, anyhow::Error> {
         self.list_by_email(email).await
     }
 }

@@ -6,6 +6,7 @@
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 
+use anyhow::anyhow;
 use openidconnect::core::{
     CoreAuthenticationFlow, CoreClient, CoreGenderClaim, CoreIdTokenClaims, CoreProviderMetadata,
 };
@@ -18,10 +19,8 @@ use openidconnect::{OAuth2TokenResponse, TokenResponse};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use shared::errors::CustomError;
 use tracing::{info, trace};
 
-use crate::errors::VerifierError;
 use crate::verification::sso::{AuthChallengeData, VerifiedSSOClaims};
 
 #[derive(Debug)]
@@ -73,11 +72,11 @@ impl OidcVerifier {
         client_id: &str,
         client_secret: Option<&str>,
         endpoint_url: &str,
-    ) -> Result<Self, VerifierError> {
+    ) -> Result<Self, anyhow::Error> {
         let provider_metadata =
             CoreProviderMetadata::discover_async(IssuerUrl::new(issuer_url.to_string())?, async_http_client)
                 .await
-                .map_err(|e| CustomError::String(e.to_string()))?;
+                .map_err(|e| anyhow!(e))?;
         let client_secret = client_secret.map(|s| ClientSecret::new(s.to_string()));
         let redirect_url = endpoint_url.to_string() + "/verify/name_code";
         let client =
@@ -88,7 +87,7 @@ impl OidcVerifier {
     }
 
     #[tracing::instrument]
-    pub fn get_auth_url(&self) -> Result<(Url, AuthChallengeData), VerifierError> {
+    pub fn get_auth_url(&self) -> Result<(Url, AuthChallengeData), anyhow::Error> {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, csrf_token, nonce) = self
             .client
@@ -120,11 +119,11 @@ impl OidcVerifier {
         auth_challenge: AuthChallengeData,
         auth_response: &str,
         auth_state: &str,
-    ) -> Result<VerifiedSSOClaims, VerifierError> {
+    ) -> Result<VerifiedSSOClaims, anyhow::Error> {
         let auth_challenge = OIDCAuthChallenge::try_from(auth_challenge)?;
 
         if auth_challenge.get_state() != auth_state {
-            return Err("Failed to validate OAuth State parameter!".into());
+            return Err(anyhow!("Failed to validate OAuth State parameter!"));
         }
 
         let token_response = self
@@ -133,17 +132,17 @@ impl OidcVerifier {
             .set_pkce_verifier(auth_challenge.pkce_verifier)
             .request_async(async_http_client)
             .await
-            .map_err(|e| CustomError::String(format!("{:?}", e)))?;
+            .map_err(|e| anyhow!(e))?;
 
         info!("OIDC ID Token: {:?}", token_response.id_token()); // TODO strip signature from log
 
         let id_token = token_response
             .id_token()
-            .ok_or_else(|| CustomError::String("Server did not return an ID token".to_string()))?;
+            .ok_or_else(|| anyhow!("Server did not return an ID token"))?;
 
         let claims = id_token
             .claims(&self.client.id_token_verifier(), &auth_challenge.nonce)
-            .map_err(|e| CustomError::String(e.to_string()))?;
+            .map_err(|e| anyhow!(e))?;
 
         info!("OIDC Claims from Token: {:?}", claims);
 
@@ -155,13 +154,11 @@ impl OidcVerifier {
             if let Some(expected_access_token_hash) = claims.access_token_hash() {
                 let actual_access_token_hash = AccessTokenHash::from_token(
                     token_response.access_token(),
-                    &id_token
-                        .signing_alg()
-                        .map_err(|e| CustomError::String(format!("{:?}", e)))?,
+                    &id_token.signing_alg().map_err(|e| anyhow!(e))?,
                 )
-                .map_err(|e| CustomError::String(format!("{:?}", e)))?;
+                .map_err(|e| anyhow!(e))?;
                 if actual_access_token_hash != *expected_access_token_hash {
-                    return Err(VerifierError::String("Invalid access token".to_string()));
+                    return Err(anyhow!("Invalid access token"));
                 }
             }
 
@@ -188,15 +185,14 @@ struct OpenIDConnectClaimsInProgress {
 }
 
 impl OpenIDConnectClaimsInProgress {
-    fn complete(self) -> Result<VerifiedSSOClaims, VerifierError> {
+    fn complete(self) -> Result<VerifiedSSOClaims, anyhow::Error> {
         let mut emails = vec![];
         if let Some(email) = self.verified_email {
             emails.push(email)
         }
         match self.name {
-            None => Err(VerifierError::String(
+            None => Err(anyhow!(
                 "Failed to obtain Name from both the IdentityToken and (if available) the UserInfo Endpoint!"
-                    .to_string(),
             )),
             Some(name) => Ok(VerifiedSSOClaims {
                 names: vec![name],
@@ -267,32 +263,32 @@ impl OIDCAuthChallenge {
 }
 
 impl TryFrom<AuthChallengeData> for OIDCAuthChallenge {
-    type Error = VerifierError;
+    type Error = anyhow::Error;
 
     fn try_from(value: AuthChallengeData) -> Result<Self, Self::Error> {
         let challenge_type = value
             .get("type")
-            .ok_or_else(|| VerifierError::from("Missing type in AuthChallenge!"))?;
+            .ok_or_else(|| anyhow!("Missing type in AuthChallenge!"))?;
         if challenge_type != "oidc" {
-            return Err("Wrong type in AuthChallenge!".into());
+            return Err(anyhow!("Wrong type in AuthChallenge!"));
         }
         Ok(Self {
             csrf_token: CsrfToken::new(
                 value
                     .get("csrf_token")
-                    .ok_or("Missing csrf_token in oidc AuthChallenge!")?
+                    .ok_or_else(|| anyhow!("Missing csrf_token in oidc AuthChallenge!"))?
                     .to_string(),
             ),
             nonce: Nonce::new(
                 value
                     .get("nonce")
-                    .ok_or("Missing nonce in oidc AuthChallenge!")?
+                    .ok_or_else(|| anyhow!("Missing nonce in oidc AuthChallenge!"))?
                     .to_string(),
             ),
             pkce_verifier: PkceCodeVerifier::new(
                 value
                     .get("pkce_verifier")
-                    .ok_or("Missing pkce_verifier in oidc AuthChallenge!")?
+                    .ok_or_else(|| anyhow!("Missing pkce_verifier in oidc AuthChallenge!"))?
                     .to_string(),
             ),
         })

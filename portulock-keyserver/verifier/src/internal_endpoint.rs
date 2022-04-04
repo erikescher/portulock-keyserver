@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use anyhow::anyhow;
 use rocket::State;
-use shared::errors::CustomError;
 use shared::utils::async_helper::AsyncHelper;
 use shared::utils::rocket_helpers::LimitedString;
 use verifier_lib::db_new::DBWrapper;
@@ -19,9 +19,9 @@ pub fn db_cleanup(
     secret: LimitedString,
     submitter_db: SubmitterDBConn,
     internal_secret: State<InternalSecretHolder>,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     if internal_secret.inner().0 != String::from(secret) {
-        return Err(CustomError::from("Invalid InternalSecret provided!"));
+        return Err(anyhow!("Invalid InternalSecret provided!"));
     }
     let submitter_db = DBWrapper {
         db: &DieselSQliteDB { conn: &submitter_db.0 },

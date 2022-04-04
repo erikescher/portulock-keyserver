@@ -8,17 +8,16 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use rocket::http::{Cookie, Cookies, SameSite};
 use rocket::request::Form;
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_contrib::templates::Template;
 use sequoia_openpgp::Fingerprint;
-use shared::errors::CustomError;
 use shared::types::Email;
 use shared::utils::async_helper::AsyncHelper;
 use verifier_lib::db_new::DBWrapper;
-use verifier_lib::errors::VerifierError;
 use verifier_lib::key_storage::KeyStore;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification;
@@ -38,7 +37,7 @@ pub fn verify_email_request(
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
     mailer: State<MailerHolder>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
     let email = Email::parse(email.as_str())?;
     let token_key = token_key.inner();
@@ -58,7 +57,7 @@ pub fn verify_email_request(
 
 #[get("/verify/email?<token>")]
 #[tracing::instrument]
-pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Template, CustomError> {
+pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Template, anyhow::Error> {
     let email_token = SignedEmailVerificationToken::from(token);
     let token_key = token_key.inner();
 
@@ -79,7 +78,7 @@ pub fn verify_name_start(
     fpr: String,
     auth_system: State<AuthSystem>,
     mut cookies: Cookies,
-) -> Result<Redirect, CustomError> {
+) -> Result<Redirect, anyhow::Error> {
     let fpr = Fingerprint::from_str(fpr.as_str())?;
     let auth_system = auth_system.inner();
 
@@ -105,7 +104,7 @@ pub fn verify_oidc_code(
     cookies: Cookies,
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
-) -> Result<Template, CustomError> {
+) -> Result<Template, anyhow::Error> {
     verify_name_auth_system(
         Some(state),
         code.as_str(),
@@ -118,17 +117,17 @@ pub fn verify_oidc_code(
 
 #[get("/verify/saml/metadata")]
 #[tracing::instrument]
-pub fn verify_saml_metadata(auth_system: State<AuthSystem>) -> Result<String, VerifierError> {
+pub fn verify_saml_metadata(auth_system: State<AuthSystem>) -> Result<String, anyhow::Error> {
     match auth_system.inner() {
         AuthSystem::Saml(saml) => Ok(saml.get_metadata().to_string()),
-        AuthSystem::Oidc(_) => Err("SAML metadata requested for OIDC AuthSystem!".into()),
+        AuthSystem::Oidc(_) => Err(anyhow!("SAML metadata requested for OIDC AuthSystem!")),
     }
 }
 
 #[post("/verify/saml/slo")]
 #[tracing::instrument]
-pub fn verify_saml_slo() -> Result<String, VerifierError> {
-    Err("SAML Single Logout Service is not implemented!".into())
+pub fn verify_saml_slo() -> Result<String, anyhow::Error> {
+    Err(anyhow!("SAML Single Logout Service is not implemented!"))
 }
 
 #[derive(FromForm, Debug)]
@@ -147,7 +146,7 @@ pub fn verify_saml_acs(
     cookies: Cookies,
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
-) -> Result<Template, CustomError> {
+) -> Result<Template, anyhow::Error> {
     verify_name_auth_system(
         acs_message.0.relay_state,
         &acs_message.0.saml_response,
@@ -166,10 +165,10 @@ fn verify_name_auth_system(
     mut cookies: Cookies,
     token_key: State<TokenKey>,
     expiration_config: State<ExpirationConfig>,
-) -> Result<Template, CustomError> {
+) -> Result<Template, anyhow::Error> {
     let cookie = cookies
         .get_private(COOKIE_KEY)
-        .ok_or("No auth_challenge cookie found!")?;
+        .ok_or_else(|| anyhow!("No auth_challenge cookie found!"))?;
     let cookie_data: AuthChallengeCookie = serde_json::from_str(cookie.value())?;
     let fpr = cookie_data.fpr.clone();
     let auth_system = auth_system.inner();
@@ -208,7 +207,7 @@ fn tokens_to_context(
     name_tokens: Vec<SignedNameVerificationToken>,
     email_tokens: Vec<SignedEmailVerificationToken>,
     token_key: &TokenKey,
-) -> Result<(String, String, String, String), VerifierError> {
+) -> Result<(String, String, String, String), anyhow::Error> {
     let names = name_tokens
         .iter()
         .flat_map(|name_token| name_token.verify(token_key))
@@ -271,7 +270,7 @@ pub fn verify_confirm(
     submitter_db: SubmitterDBConn,
     keystore: State<'_, KeyStoreHolder>,
     token_key: State<TokenKey>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let submitter_db = DBWrapper {
         db: &DieselSQliteDB { conn: &submitter_db.0 },
     };
@@ -291,7 +290,7 @@ async fn verify_confirm_async(
     submitter_db: &DBWrapper<'_>,
     keystore: &(impl KeyStore + ?Sized),
     token_key: &TokenKey,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     if let Some(name_tokens) = payload.name_token {
         let name_tokens = name_tokens.split(':');
         for name_token in name_tokens {

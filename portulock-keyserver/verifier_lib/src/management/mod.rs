@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::iter::FromIterator;
 
+use anyhow::anyhow;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use sequoia_openpgp::cert::prelude::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
@@ -19,7 +20,6 @@ use sequoia_openpgp::serialize::stream::{Armorer, Encryptor, LiteralWriter, Mess
 use sequoia_openpgp::types::{PublicKeyAlgorithm, SignatureType};
 use sequoia_openpgp::{Cert, Fingerprint, Packet};
 use serde::{Deserialize, Serialize};
-use shared::errors::CustomError;
 use shared::filtering::applier::KeyFilterApplier;
 use shared::filtering::filters::KeyFilterSubtractingPackets;
 use shared::types::Email;
@@ -42,14 +42,14 @@ pub async fn challenge_decrypt(
     expiration_config: &ExpirationConfig,
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     // TODO: might be obsolete and unused
     let cert = match keystore.get_by_fpr(fpr).await? {
         Some(cert) => cert,
         None => submitter_db
             .get_pending_cert_by_fpr(fpr)
             .await?
-            .ok_or("No key with this Fingerprint found in the keystore")?,
+            .ok_or_else(|| anyhow!("No key with this Fingerprint found in the keystore"))?,
     };
     challenge_decrypt_with_key(&cert, token_key, expiration_config).await
 }
@@ -59,7 +59,7 @@ pub async fn challenge_decrypt_with_key(
     cert: &Cert,
     token_key: &TokenKey,
     expiration_config: &ExpirationConfig,
-) -> Result<String, CustomError> {
+) -> Result<String, anyhow::Error> {
     let fpr = cert.fingerprint();
     let challenge = create_management_token(&fpr, token_key, expiration_config);
     let challenge = ChallengeHolder::new(challenge);
@@ -102,7 +102,7 @@ pub async fn challenge_email_all_keys(
     mailer: &dyn Mailer,
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let mut certs = vec![];
     certs.append(&mut keystore.list_by_email(email.get_email().as_str()).await?);
     certs.append(&mut submitter_db.get_pending_cert_by_email(&email).await?);
@@ -125,7 +125,7 @@ pub async fn challenge_email(
     mailer: &dyn Mailer,
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let published_cert = keystore.get_by_fpr(fpr).await?;
     let pending_cert = submitter_db.get_pending_cert_by_fpr(fpr).await?;
 
@@ -133,7 +133,7 @@ pub async fn challenge_email(
     let cert = merge_certs(certs)
         .into_iter()
         .next()
-        .ok_or("No key with this UID found in the keystore")?;
+        .ok_or_else(|| anyhow!("No key with this UID found in the keystore"))?;
 
     let mut emails: Vec<Email> = emails_from_cert(&cert)
         .iter()
@@ -202,7 +202,7 @@ pub async fn delete_key(
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
     deletion_config: &DeletionConfig,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     let management_token = management_token.verify(token_key)?;
     let fpr = management_token.fpr;
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
@@ -210,7 +210,7 @@ pub async fn delete_key(
     match deletion_config {
         DeletionConfig::Always() => {}
         DeletionConfig::Never() => {
-            return Err("Deletion is not allowed on this server!".into());
+            return Err(anyhow!("Deletion is not allowed on this server!"));
         }
     }
 
@@ -234,9 +234,9 @@ pub async fn store_revocations(
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
     expiration_config: &ExpirationConfig,
-) -> Result<(), CustomError> {
+) -> Result<(), anyhow::Error> {
     if !keystore.can_store_revocations_without_publishing() {
-        return Err("Not implemented for KeyStores other than OpenPGP-CA!".into());
+        return Err(anyhow!("Not implemented for KeyStores other than OpenPGP-CA!"));
     }
 
     match get_published_and_pending_cert(fpr, keystore, submitter_db).await? {
@@ -255,7 +255,7 @@ pub async fn store_revocations(
             }
             Ok(())
         }
-        (None, None) => Err("No associated certificate found!".into()),
+        (None, None) => Err(anyhow!("No associated certificate found!")),
     }
 }
 
@@ -310,7 +310,7 @@ pub async fn get_key_status_authenticated(
     submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
     deletion_config: &DeletionConfig,
-) -> Result<KeyStatus, CustomError> {
+) -> Result<KeyStatus, anyhow::Error> {
     let management_token = signed_management_token.verify(token_key)?;
     let fpr = Fingerprint::from_hex(management_token.fpr.as_str())?;
     get_key_status(&fpr, keystore, submitter_db, deletion_config)
@@ -327,7 +327,7 @@ pub async fn get_key_status(
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
     deletion_config: &DeletionConfig,
-) -> Result<KeyStatus, CustomError> {
+) -> Result<KeyStatus, anyhow::Error> {
     let (published_cert, pending_cert) = get_published_and_pending_cert(fpr, keystore, submitter_db).await?;
     let approved_names = submitter_db.get_approved_names(fpr).await?;
     let approved_emails = submitter_db.get_approved_emails(fpr).await?;
@@ -412,7 +412,7 @@ pub async fn authenticated_download(
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
     token_key: &TokenKey,
-) -> Result<Cert, CustomError> {
+) -> Result<Cert, anyhow::Error> {
     let management_token = signed_management_token.verify(token_key)?;
     let fpr = Fingerprint::from_hex(management_token.fpr.as_str())?;
     let (published_cert, pending_cert) = get_published_and_pending_cert(&fpr, keystore, submitter_db).await?;
@@ -420,7 +420,7 @@ pub async fn authenticated_download(
     merge_certs(certs)
         .first()
         .cloned()
-        .ok_or_else(|| "No key found for fingerprint!".into())
+        .ok_or_else(|| anyhow!("No key found for fingerprint!"))
 }
 
 #[tracing::instrument]
@@ -428,7 +428,7 @@ async fn get_published_and_pending_cert(
     fpr: &Fingerprint,
     keystore: &(impl KeyStore + ?Sized),
     submitter_db: &DBWrapper<'_>,
-) -> Result<(Option<Cert>, Option<Cert>), CustomError> {
+) -> Result<(Option<Cert>, Option<Cert>), anyhow::Error> {
     let published_cert = keystore.get_by_fpr(fpr).await?;
     let pending_cert = submitter_db.get_pending_cert_by_fpr(fpr).await?;
     Ok(match (published_cert, pending_cert) {
@@ -505,7 +505,7 @@ fn key_algo_to_string(algo: PublicKeyAlgorithm) -> String {
 }
 
 #[tracing::instrument]
-pub fn revocations_from_string(revocations: String) -> Result<Vec<Signature>, CustomError> {
+pub fn revocations_from_string(revocations: String) -> Result<Vec<Signature>, anyhow::Error> {
     let mut packet_parser_result = PacketParserBuilder::from_bytes(revocations.as_bytes())?
         .buffer_unread_content()
         .build()?;

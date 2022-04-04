@@ -5,9 +5,8 @@
 
 use std::fmt::Display;
 
+use anyhow::anyhow;
 use sequoia_openpgp::packet::UserID;
-
-use crate::errors::CustomError;
 
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct Email {
@@ -23,12 +22,12 @@ impl Email {
         }
     }
 
-    pub fn parse(email: &str) -> Result<Self, CustomError> {
+    pub fn parse(email: &str) -> Result<Self, anyhow::Error> {
         let mut parts = email.split('@');
-        let localpart = parts.next().ok_or("Invalid Email Address!")?;
-        let domain = parts.next().ok_or("Invalid Email Address!")?;
+        let localpart = parts.next().ok_or_else(|| anyhow!("Invalid Email Address!"))?;
+        let domain = parts.next().ok_or_else(|| anyhow!("Invalid Email Address!"))?;
         match parts.next() {
-            Some(_) => Err("Invalid Email Address!".into()),
+            Some(_) => Err(anyhow!("Invalid Email Address!")),
             None => Ok(Self::new(localpart, domain)),
         }
     }

@@ -7,7 +7,6 @@ use mailer::Mailer;
 use sequoia_openpgp::Cert;
 
 use crate::db_new::DBWrapper;
-use crate::errors::VerifierError;
 use crate::key_storage::KeyStore;
 use crate::utils_verifier::expiration::ExpirationConfig;
 use crate::verification::challenges::VerificationChallenge;
@@ -48,7 +47,7 @@ pub async fn submit_keys(
     token_key: &TokenKey,
     certs: Vec<Cert>,
     keystore: &(impl KeyStore + ?Sized),
-) -> Result<Vec<VerificationChallenge>, VerifierError> {
+) -> Result<Vec<VerificationChallenge>, anyhow::Error> {
     let mut combined_challenges = vec![];
     for cert in certs {
         let mut challenges = internal_submission::submit_key(

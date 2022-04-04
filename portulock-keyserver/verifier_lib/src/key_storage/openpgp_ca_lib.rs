@@ -7,6 +7,7 @@ use std::fs;
 use std::fs::{remove_dir_all, remove_file};
 use std::path::Path;
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use openpgp_ca_lib::ca::OpenpgpCa as BackendCA;
 use openpgp_ca_lib::db::models::Cert as BackendCert;
@@ -16,7 +17,6 @@ use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::Serialize;
 use sequoia_openpgp::{Cert, Fingerprint};
-use shared::errors::CustomError;
 use shared::types::Email;
 use shared::utils::armor::certificate_from_str;
 use shared::utils::armor::{armor_signature, export_armored_cert};
@@ -37,7 +37,7 @@ pub struct OpenPGPCALib {
 
 impl OpenPGPCALib {
     #[tracing::instrument]
-    pub fn new(domain: &str, certification_duration: u64, certification_threshold: u64) -> Result<Self, CustomError> {
+    pub fn new(domain: &str, certification_duration: u64, certification_threshold: u64) -> Result<Self, anyhow::Error> {
         let domain = domain.to_string();
         let db_url = format!("./state/ca-{}.sqlite", domain);
         let new_instance = Self {
@@ -83,12 +83,12 @@ impl OpenPGPCALib {
         Path::new(self.path.as_str())
     }
 
-    fn get_ca(&self) -> Result<BackendCA, CustomError> {
-        BackendCA::new(Some(self.get_db_url())).map_err(CustomError::from)
+    fn get_ca(&self) -> Result<BackendCA, anyhow::Error> {
+        BackendCA::new(Some(self.get_db_url()))
     }
 
     #[tracing::instrument]
-    fn delete_cert_from_wkd(&self, delisted_cert: &Cert) -> Result<(), CustomError> {
+    fn delete_cert_from_wkd(&self, delisted_cert: &Cert) -> Result<(), anyhow::Error> {
         for uida in delisted_cert.userids() {
             if let Ok(Some(string)) = uida.userid().email_normalized() {
                 if let Ok(e) = Email::parse(string.as_str()) {
@@ -122,7 +122,7 @@ impl OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    fn update_wkd_for_cert(&self, cert: &Cert) -> Result<(), CustomError> {
+    fn update_wkd_for_cert(&self, cert: &Cert) -> Result<(), anyhow::Error> {
         for cert in CertWithSingleUID::iterate_over_cert(cert) {
             sequoia_net::wkd::insert(
                 self.get_wkd_path(),
@@ -135,7 +135,7 @@ impl OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    fn delete_delisted_certs(&self) -> Result<(), CustomError> {
+    fn delete_delisted_certs(&self) -> Result<(), anyhow::Error> {
         let mut connection = rusqlite::Connection::open(self.get_db_url())?;
         connection.execute("PRAGMA foreign_keys=on", [])?;
         let transaction = connection.transaction()?;
@@ -164,14 +164,14 @@ impl OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    pub fn perform_maintenance(&self) -> Result<(), CustomError> {
+    pub fn perform_maintenance(&self) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
         ca.certs_refresh_ca_certifications(self.threshold, self.duration)?;
         self.delete_delisted_certs()
     }
 
     #[tracing::instrument]
-    pub fn regenerate_wkd(&self) -> Result<(), CustomError> {
+    pub fn regenerate_wkd(&self) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
         remove_dir_all(self.get_wkd_path())?;
         ca.export_wkd(self.domain.as_str(), self.get_wkd_path())?;
@@ -182,7 +182,7 @@ impl OpenPGPCALib {
 #[async_trait]
 impl KeyStore for &OpenPGPCALib {
     #[tracing::instrument]
-    async fn store(&self, cert: &Cert) -> Result<(), CustomError> {
+    async fn store(&self, cert: &Cert) -> Result<(), anyhow::Error> {
         let emails = emails_from_cert(cert);
         let emails: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
         let armored_cert = export_armored_cert(cert);
@@ -203,15 +203,14 @@ impl KeyStore for &OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, CustomError> {
+    async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, anyhow::Error> {
         self.get_ca()?
             .certs_by_email(email)
             .map(ca_cert_model_vec_to_parsed_cert_vec)
-            .map_err(CustomError::from)
     }
 
     #[tracing::instrument]
-    async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, CustomError> {
+    async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error> {
         Ok(self
             .get_ca()?
             .cert_get_by_fingerprint(fpr.to_hex().as_str())?
@@ -219,11 +218,11 @@ impl KeyStore for &OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
+    async fn stop_recertification(&self, fpr: &Fingerprint) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
         let mut cert = ca
             .cert_get_by_fingerprint(fpr.to_hex().as_str())?
-            .ok_or("No certificate found to deactivate!")?;
+            .ok_or_else(|| anyhow!("No certificate found to deactivate!"))?;
 
         cert.inactive = true;
 
@@ -231,11 +230,11 @@ impl KeyStore for &OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    async fn delete(&self, fpr: &Fingerprint) -> Result<(), CustomError> {
+    async fn delete(&self, fpr: &Fingerprint) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
         let mut cert = ca
             .cert_get_by_fingerprint(fpr.to_hex().as_str())?
-            .ok_or("No certificate found to delete!")?;
+            .ok_or_else(|| anyhow!("No certificate found to delete!"))?;
 
         cert.delisted = true;
 
@@ -254,7 +253,7 @@ impl KeyStore for &OpenPGPCALib {
         &self,
         _cert: &Cert,
         revocations: Vec<Signature>,
-    ) -> Result<(), CustomError> {
+    ) -> Result<(), anyhow::Error> {
         for revocation in revocations {
             self.get_ca()?.revocation_add(armor_signature(revocation)?.as_str())?;
         }
@@ -262,11 +261,11 @@ impl KeyStore for &OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, CustomError> {
+    async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, anyhow::Error> {
         let ca = self.get_ca()?;
         let cert = ca
             .cert_get_by_fingerprint(fpr.to_hex().as_str())?
-            .ok_or("No certificate found!")?;
+            .ok_or_else(|| anyhow!("No certificate found!"))?;
         Ok(self
             .get_ca()?
             .revocations_get(&cert)?

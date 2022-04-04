@@ -14,7 +14,6 @@ use sequoia_openpgp::PacketPile;
 
 use super::openpgp::parse::Parse;
 use super::openpgp::serialize::{Serialize, SerializeInto};
-use crate::errors::CustomError;
 
 pub fn export_armored_cert(cert: &sequoia_openpgp::Cert) -> String {
     let serialized_certifications = cert.armored().export_to_vec().expect("Export failed");
@@ -44,7 +43,7 @@ pub fn export_armored_certs(certs: &[sequoia_openpgp::Cert]) -> Result<String, a
     Ok(String::from_utf8(vec)?)
 }
 
-pub fn parse_certs(armored_certs: &str) -> Result<Vec<Cert>, CustomError> {
+pub fn parse_certs(armored_certs: &str) -> Result<Vec<Cert>, anyhow::Error> {
     // We simply ignore any packets that can't be parsed.
     // Aborting and returning an Error to the user would not be helpful and logging it somewhere is likely pointless as well.
     Ok(CertParser::from_bytes(armored_certs.as_bytes())?.flatten().collect())
@@ -76,14 +75,14 @@ pub fn certification_key_from_str(certification_key: &str) -> Cert {
     certification_key
 }
 
-pub fn armor_packet(packet: sequoia_openpgp::Packet) -> Result<String, CustomError> {
+pub fn armor_packet(packet: sequoia_openpgp::Packet) -> Result<String, anyhow::Error> {
     let mut writer = Writer::new(vec![], Kind::Signature)?;
     packet.serialize(&mut writer)?;
     let bytes = writer.finalize()?;
     Ok(String::from_utf8(bytes)?)
 }
 
-pub fn armor_signature(signature: sequoia_openpgp::packet::Signature) -> Result<String, CustomError> {
+pub fn armor_signature(signature: sequoia_openpgp::packet::Signature) -> Result<String, anyhow::Error> {
     use super::openpgp::serialize::Marshal;
     let mut writer = Writer::new(vec![], Kind::Signature)?;
     signature.serialize(&mut writer)?;

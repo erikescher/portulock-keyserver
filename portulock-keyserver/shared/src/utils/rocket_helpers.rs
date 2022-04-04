@@ -5,12 +5,11 @@
 
 use std::io::Read;
 
+use anyhow::anyhow;
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::Status;
 use rocket::outcome::Outcome::{Failure, Success};
 use rocket::{Data, Request};
-
-use crate::errors::CustomError;
 
 const LIMIT: u64 = 1024 * 256;
 
@@ -26,12 +25,12 @@ impl From<LimitedString> for String {
 }
 
 impl FromDataSimple for LimitedString {
-    type Error = CustomError;
+    type Error = anyhow::Error;
 
     fn from_data(_request: &Request, data: Data) -> Outcome<Self, Self::Error> {
         let mut string = String::new();
         if let Err(e) = data.open().take(LIMIT).read_to_string(&mut string) {
-            return Failure((Status::InternalServerError, CustomError::from(e)));
+            return Failure((Status::InternalServerError, anyhow!(e)));
         }
 
         Success(LimitedString { string })
