@@ -20,8 +20,9 @@ pub async fn lookup_handle(config: &LookupConfig, handle: &KeyHandle) -> Result<
 
     let mut certs = Vec::new();
     for keyserver in config.get_all_keyservers() {
-        let mut c = keyserver.lookup_locator(handle).await.unwrap_or_default();
-        certs.append(&mut c);
+        if let Ok(c) = keyserver.lookup_locator(handle).await {
+            certs.push(c)
+        }
     }
     let certs = filter_certs(certs);
     let mut authoritative_certs = vec![];
@@ -50,9 +51,7 @@ impl LookupConfig {
     fn get_all_keyservers(&self) -> Vec<Keyserver> {
         let mut ldc_vectors = Vec::new();
         ldc_vectors.append(&mut self.special_domains.values().collect());
-        for ldc in &self.fallbacks {
-            ldc_vectors.push(ldc)
-        }
+        ldc_vectors.append(&mut self.fallbacks.values().collect());
         let mut map = HashMap::new();
         for ldc in ldc_vectors {
             if ldc.use_for_keyhandle_query {

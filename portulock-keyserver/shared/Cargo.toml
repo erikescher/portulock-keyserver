@@ -7,4 +7,3 @@ edition = "2018"
 [dependencies]
 sequoia-openpgp = "1"
 anyhow = "1"
-tokio = { version = "0.2", features = ["full"] } # outdated version in use with sequoia-net

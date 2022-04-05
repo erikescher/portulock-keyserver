@@ -7,13 +7,14 @@ use async_trait::async_trait;
 use local::LocalCertifier;
 use sequoia_openpgp::packet::UserID;
 use sequoia_openpgp::Cert;
+use serde::Deserialize;
 
 #[async_trait]
 pub trait Certifier {
     async fn certify(&self, cert: Cert, userid: &UserID) -> Cert;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum CertifierConfig {
     Local(LocalCertifier),
 }

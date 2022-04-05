@@ -20,7 +20,7 @@ pub async fn lookup_email(config: &LookupConfig, email: &Email) -> Result<Vec<Ce
             .unwrap_or_default(),
         None => {
             let mut certs = vec![];
-            for fallback_lookup_domain_config in &config.fallbacks {
+            for fallback_lookup_domain_config in config.fallbacks.values() {
                 certs.append(
                     &mut lookup_email_from_lookup_domain_config(fallback_lookup_domain_config, email)
                         .await
@@ -80,7 +80,8 @@ async fn lookup_email_from_lookup_domain_config(
         for certifier in &lookup_domain_config.email_certifiers {
             for uid in cert.userids().map(|uida| uida.component()) {
                 println!("certifying uid={:?}", uid);
-                certified_certs.push(certifier.get_certifier().certify(cert.clone(), uid).await);
+                let certifier = certifier.get_certifier().certify(cert.clone(), uid);
+                certified_certs.push(certifier.await);
             }
         }
     }

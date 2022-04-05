@@ -3,33 +3,32 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#![feature(proc_macro_hygiene, decl_macro)]
-
 #[macro_use]
 extern crate rocket;
 
-use config::lookup_config_from_config_table;
-use rocket::fairing::AdHoc;
-use rocket::Rocket;
-use shared::utils::async_helper::AsyncHelper;
+use rocket::{Build, Rocket};
 
+use crate::async_helper::AsyncHelper;
+use crate::lookup::LookupConfig;
+
+mod async_helper;
 mod certification;
-mod config;
+mod error;
 mod lookup;
 mod lookup_endpoint;
 
 #[tracing::instrument]
-fn main() {
+#[launch]
+//noinspection RsMainFunctionNotFound
+fn rocket() -> Rocket<Build> {
     tracing_subscriber::fmt::init();
 
-    let rocket = rocket::ignite()
+    let rocket = rocket::build()
         .mount("/", routes![lookup_endpoint::lookup,])
-        .attach(AdHoc::on_attach("Lookup Config", |rocket: Rocket| {
-            let lookup_config_table = rocket.config().get_table("lookup_config").unwrap();
-            let lookup_config = lookup_config_from_config_table(lookup_config_table);
-            Ok(rocket.manage(lookup_config))
-        }))
         .manage(AsyncHelper::new());
 
-    rocket.launch();
+    let figment = rocket.figment();
+    let lookup_config: LookupConfig = figment.extract_inner("lookup_config").expect("Lookup Config missing!");
+
+    rocket.manage(lookup_config)
 }

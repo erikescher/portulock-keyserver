@@ -5,21 +5,20 @@
 
 use rocket::State;
 use shared::utils::armor::export_armored_certs;
-use shared::utils::async_helper::AsyncHelper;
 
-use crate::lookup;
+use crate::error::AnyhowErrorResponse;
+use crate::lookup::lookup as key_lookup;
 use crate::lookup::{LookupConfig, SearchString};
 
 #[get("/pks/lookup?<search>")]
 #[tracing::instrument]
 // parameters "exact" and "fingerprint" are implied and therefore ignored
 // The "option(s)"/operation is assumed to be "GET". Index and VIndex are treated the same as GET operations.
-pub fn lookup(search: SearchString, lookup_config: State<'_, LookupConfig>) -> Result<String, anyhow::Error> {
+pub async fn lookup(search: &str, lookup_config: &State<LookupConfig>) -> Result<String, AnyhowErrorResponse> {
     let lookup_config = lookup_config.inner();
+    let search = SearchString::from_string(search)?;
 
-    let certs = AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(lookup::lookup(lookup_config, search))?;
+    let certs = key_lookup(lookup_config, search).await?;
 
     let armored_certs = export_armored_certs(&certs)?;
     Ok(armored_certs)

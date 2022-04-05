@@ -8,11 +8,6 @@ use std::io::Error;
 
 use tokio::runtime::Runtime;
 
-pub fn block_on_async_function<F: Future>(future: F) -> F::Output {
-    let mut runtime = Runtime::new().expect("Failed to create tokio runtime.");
-    runtime.block_on(future)
-}
-
 pub struct AsyncHelper {
     runtime: Runtime,
 }

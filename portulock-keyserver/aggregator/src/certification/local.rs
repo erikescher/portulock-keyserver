@@ -3,24 +3,25 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use sequoia_openpgp::crypto::KeyPair;
 use sequoia_openpgp::packet::UserID;
 use sequoia_openpgp::types::SignatureType;
 use sequoia_openpgp::Cert;
+use serde::de::{Error, Unexpected};
+use serde::{Deserialize, Deserializer};
 
 use crate::certification::{Certifier, CertifierFactory};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct LocalCertifier {
+    #[serde(deserialize_with = "deserialize_cert")]
     certification_key: Cert,
 }
 
 impl LocalCertifier {
-    pub fn new(certification_key: Cert) -> Self {
-        LocalCertifier { certification_key }
-    }
-
     fn get_keypair(&self) -> KeyPair {
         cert_to_keypair(self.certification_key.clone())
     }
@@ -59,4 +60,12 @@ fn cert_to_keypair(cert: Cert) -> KeyPair {
         .expect("No secret keys contained")
         .key();
     key.clone().into_keypair().expect("Key generation failed elsewhere")
+}
+
+pub fn deserialize_cert<'de, D>(deserializer: D) -> Result<Cert, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: &str = Deserialize::deserialize(deserializer)?;
+    Cert::from_str(s).map_err(|_| D::Error::invalid_value(Unexpected::Str(s), &"an ASCII armored OpenPGP Certificate"))
 }

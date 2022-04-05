@@ -13,7 +13,6 @@ use openpgp::{Cert, Fingerprint};
 use crate::types::Email;
 
 pub mod armor;
-pub mod async_helper;
 pub mod maps;
 
 pub fn merge_certs(certs: Vec<Cert>) -> Vec<Cert> {

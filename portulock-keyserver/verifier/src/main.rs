@@ -15,16 +15,15 @@ extern crate rocket;
 use std::collections::HashMap;
 use std::{thread, time};
 
+use async_helper::AsyncHelper;
 use chrono::Duration;
 use num_traits::ToPrimitive;
 use rocket::config::{Array, Table, Value};
 use rocket::fairing::AdHoc;
 use rocket::Rocket;
 use rocket_contrib::templates::Template;
-use shared::utils;
 use shared::utils::armor;
 use tracing::info;
-use utils::async_helper::AsyncHelper;
 use verifier_lib::db_new::DBWrapper;
 use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
 use verifier_lib::key_storage::openpgp_ca_lib::OpenPGPCALib;
@@ -39,6 +38,7 @@ use verifier_lib::DeletionConfig;
 
 use crate::holders::{ExternalURLHolder, InternalSecretHolder, KeyStoreHolder, MailerHolder};
 
+pub mod async_helper;
 mod db;
 mod holders;
 mod internal_endpoint;

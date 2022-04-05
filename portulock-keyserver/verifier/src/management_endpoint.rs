@@ -11,7 +11,6 @@ use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::Fingerprint;
 use shared::types::Email;
 use shared::utils::armor::{export_armored_cert, parse_certs};
-use shared::utils::async_helper::AsyncHelper;
 use verifier_lib::db_new::DBWrapper;
 use verifier_lib::management::{KeyStatus, ManagementToken};
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
@@ -19,6 +18,7 @@ use verifier_lib::verification::tokens::SignedToken;
 use verifier_lib::verification::TokenKey;
 use verifier_lib::{management, DeletionConfig};
 
+use crate::async_helper::AsyncHelper;
 use crate::db::diesel_sqlite::DieselSQliteDB;
 use crate::db::SubmitterDBConn;
 use crate::holders::{KeyStoreHolder, MailerHolder};

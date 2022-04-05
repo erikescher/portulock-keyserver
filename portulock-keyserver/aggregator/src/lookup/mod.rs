@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use rocket::http::RawStr;
-use rocket::request::FromFormValue;
 use sequoia_openpgp::{Cert, Fingerprint, KeyHandle, KeyID};
+use serde::de::{Error, Unexpected};
+use serde::{Deserialize, Deserializer};
 use shared::filtering::filter_certs;
 use shared::types::Email;
 use shared::utils::merge_certs;
@@ -36,10 +36,12 @@ pub async fn lookup(config: &LookupConfig, locator: SearchString) -> Result<Vec<
     Ok(certs)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct LookupConfig {
+    #[serde(default)]
     pub special_domains: HashMap<String, LookupDomainConfig>,
-    pub fallbacks: Vec<LookupDomainConfig>,
+    #[serde(default)]
+    pub fallbacks: HashMap<String, LookupDomainConfig>,
 }
 
 impl LookupConfig {
@@ -48,13 +50,37 @@ impl LookupConfig {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct LookupDomainConfig {
+    #[serde(default)]
     pub keyservers: Vec<Keyserver>,
+    #[serde(deserialize_with = "deserialize_cert_vec")]
+    #[serde(default)]
     pub expect_one_certification_from: Vec<Cert>,
+    #[serde(default)]
     pub email_certifiers: Vec<CertifierConfig>,
+    #[serde(default = "default_false")]
     pub use_wkd: bool,
+    #[serde(default = "default_false")]
     pub use_for_keyhandle_query: bool,
+}
+
+fn default_false() -> bool {
+    false
+}
+
+pub fn deserialize_cert_vec<'de, D>(deserializer: D) -> Result<Vec<Cert>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec: Vec<&str> = Deserialize::deserialize(deserializer)?;
+    let mut certs = vec![];
+    for s in vec {
+        let cert = Cert::from_str(s)
+            .map_err(|_| D::Error::invalid_value(Unexpected::Str(s), &"an ASCII armored OpenPGP Certificate"))?;
+        certs.push(cert);
+    }
+    Ok(certs)
 }
 
 #[allow(dead_code)]
@@ -79,7 +105,7 @@ pub enum SearchString {
 }
 
 impl SearchString {
-    fn from_string(str: &str) -> Result<Self, anyhow::Error> {
+    pub fn from_string(str: &str) -> Result<Self, anyhow::Error> {
         match Email::parse(str) {
             Ok(e) => Ok(SearchString::ByEmail(e)),
             Err(_) => {
@@ -107,17 +133,6 @@ impl SearchString {
             SearchString::ByKeyID(k) => k.to_string(),
             SearchString::ByFingerprint(f) => f.to_string(),
             SearchString::ByEmail(e) => e.to_string(),
-        }
-    }
-}
-
-impl<'v> FromFormValue<'v> for SearchString {
-    type Error = anyhow::Error;
-
-    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
-        match form_value.url_decode() {
-            Ok(v) => SearchString::from_string(v.as_str()),
-            Err(e) => Err(anyhow!(e)),
         }
     }
 }
