@@ -7,7 +7,8 @@ use base64::DecodeError;
 use challenges::EmailVerificationChallenge;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
 use sequoia_openpgp::Fingerprint;
-use serde::{Deserialize, Serialize};
+use serde::de::{Error, Unexpected};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shared::types::Email;
 use tracing::info;
 
@@ -112,6 +113,35 @@ pub struct TokenKey {
     secret: Vec<u8>,
 }
 
+impl<'de> Deserialize<'de> for TokenKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let string: String = Deserialize::deserialize(deserializer)?;
+        let bytes = base64::decode(&string)
+            .map_err(|_| D::Error::invalid_value(Unexpected::Str(&string), &"base64 encoded bytes"))?;
+        Ok(Self { secret: bytes })
+    }
+}
+
+#[derive(Debug)]
+pub struct Base64(Vec<u8>);
+impl Serialize for Base64 {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&base64::encode(&self.0))
+    }
+}
+
+impl<'de> Deserialize<'de> for Base64 {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let string: String = Deserialize::deserialize(deserializer)?;
+        let bytes = base64::decode(&string)
+            .map_err(|_| D::Error::invalid_value(Unexpected::Str(&string), &"base64 encoded bytes"))?;
+        Ok(Self(bytes))
+    }
+}
+
 impl TokenKey {
     pub fn new(secret: &str) -> Result<Self, DecodeError> {
         let secret = base64::decode(secret)?;
@@ -131,34 +161,51 @@ impl TokenKey {
     }
 }
 
+#[derive(Deserialize, Debug)]
 pub struct VerificationConfig {
+    #[serde(flatten)]
     pub sso_config: SSOConfig,
 }
 
+#[derive(Deserialize, Debug)]
 pub struct SSOConfig {
+    #[serde(flatten)]
     pub entry: SSOConfigEntry,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "sso_type")] // TODO switch to externally tagged?
 pub enum SSOConfigEntry {
     Oidc(OpenIDConnectConfigEntry),
     Saml(SAMLConfigEntry),
 }
 
+#[derive(Deserialize, Debug)]
 pub struct OpenIDConnectConfigEntry {
+    #[serde(alias = "oidc_issuer_url")]
     pub issuer_url: String,
+    #[serde(alias = "oidc_client_id")]
     pub client_id: String,
+    #[serde(alias = "oidc_client_secret")]
     pub client_secret: Option<String>,
-    pub endpoint_url: String,
 }
 
+#[derive(Deserialize, Debug)]
 pub struct SAMLConfigEntry {
+    #[serde(alias = "saml_idp_url")]
     pub idp_url: String,
-    pub idp_metadata_url: String, // can likely make this optional and derive from idp_url
-    pub endpoint_url: String,
+    #[serde(alias = "saml_idp_metadata_url")]
+    pub idp_metadata_url: String,
+    #[serde(alias = "saml_sp_entity_id")]
     pub sp_entity_id: String, // can make this optional, which will use the sp_metadata_url
+    #[serde(alias = "saml_sp_certificate_pem")]
     pub sp_certificate_pem: String,
+    #[serde(alias = "saml_sp_private_key_pem")]
     pub sp_private_key_pem: String,
+    #[serde(alias = "saml_attribute_selectors_name")]
     pub attribute_selectors_name: Vec<String>,
+    #[serde(alias = "saml_attribute_selectors_email")]
     pub attribute_selectors_email: Vec<String>,
 }
 
@@ -217,7 +264,7 @@ fn claims_to_tokens(
 
 #[tracing::instrument]
 pub async fn verify_name_auth_system(
-    auth_state: Option<String>,
+    auth_state: Option<&String>,
     auth_response: &str,
     auth_challenge_cookie: AuthChallengeCookie,
     auth_system: &AuthSystem,

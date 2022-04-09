@@ -6,6 +6,7 @@
 use std::io::Write;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use sequoia_openpgp::armor::{Kind, Writer};
 use sequoia_openpgp::cert::Cert;
 use sequoia_openpgp::cert::CertParser;
@@ -53,8 +54,8 @@ pub fn certificate_from_str(cert: &str) -> Cert {
     Cert::from_str(cert).unwrap_or_else(|_| panic!("Failed to parse <{}> as Cert!", cert))
 }
 
-pub fn certification_key_from_str(certification_key: &str) -> Cert {
-    let certification_key = certificate_from_str(certification_key);
+pub fn certification_key_from_str(certification_key: &str) -> Result<Cert, anyhow::Error> {
+    let certification_key = Cert::from_str(certification_key)?;
 
     // Check that the key is suitable for certification.
     certification_key
@@ -65,14 +66,14 @@ pub fn certification_key_from_str(certification_key: &str) -> Cert {
         .revoked(false)
         .for_certification()
         .next()
-        .unwrap_or_else(|| {
-            panic!(
+        .ok_or_else(|| {
+            anyhow!(
                 "No certification capable key found on key with fingerprint {}",
                 certification_key.fingerprint()
             )
-        });
+        })?;
 
-    certification_key
+    Ok(certification_key)
 }
 
 pub fn armor_packet(packet: sequoia_openpgp::Packet) -> Result<String, anyhow::Error> {

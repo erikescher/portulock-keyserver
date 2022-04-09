@@ -29,14 +29,14 @@ impl AuthSystem {
         &self,
         auth_challenge: AuthChallengeData,
         auth_response: &str,
-        auth_state: Option<String>,
+        auth_state: Option<&String>,
     ) -> Result<VerifiedSSOClaims, anyhow::Error> {
         match self {
             AuthSystem::Saml(saml) => saml.verify_and_extract_claims(auth_challenge, auth_response).await,
             AuthSystem::Oidc(oidc) => match auth_state {
                 None => Err(anyhow!("OIDC requires AuthState!")),
                 Some(auth_state) => {
-                    oidc.verify_and_extract_claims(auth_challenge, auth_response, auth_state.as_str())
+                    oidc.verify_and_extract_claims(auth_challenge, auth_response, auth_state)
                         .await
                 }
             },

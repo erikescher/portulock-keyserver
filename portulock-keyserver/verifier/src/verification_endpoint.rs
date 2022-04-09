@@ -9,11 +9,11 @@ use std::iter::FromIterator;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use rocket::http::{Cookie, Cookies, SameSite};
-use rocket::request::Form;
+use rocket::form::Form;
+use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::Redirect;
 use rocket::State;
-use rocket_contrib::templates::Template;
+use rocket_dyn_templates::Template;
 use sequoia_openpgp::Fingerprint;
 use shared::types::Email;
 use verifier_lib::db_new::DBWrapper;
@@ -24,40 +24,32 @@ use verifier_lib::verification::sso::AuthSystem;
 use verifier_lib::verification::tokens::{SignedEmailVerificationToken, SignedNameVerificationToken};
 use verifier_lib::verification::{AuthChallengeCookie, TokenKey};
 
-use crate::async_helper::AsyncHelper;
 use crate::db::diesel_sqlite::DieselSQliteDB;
 use crate::db::SubmitterDBConn;
+use crate::error::AnyhowErrorResponse;
 use crate::holders::{KeyStoreHolder, MailerHolder};
 
 #[get("/verify/email_request?<fpr>&<email>")]
 #[tracing::instrument]
-pub fn verify_email_request(
+pub async fn verify_email_request(
     fpr: String,
     email: String,
-    token_key: State<TokenKey>,
-    expiration_config: State<ExpirationConfig>,
-    mailer: State<MailerHolder>,
-) -> Result<String, anyhow::Error> {
+    token_key: &State<TokenKey>,
+    expiration_config: &State<ExpirationConfig>,
+    mailer: &State<MailerHolder>,
+) -> Result<String, AnyhowErrorResponse> {
     let fpr = Fingerprint::from_hex(fpr.as_str())?;
     let email = Email::parse(email.as_str())?;
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
     let mailer = mailer.inner().get_mailer();
-    AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(verification::verify_email_request(
-            &fpr,
-            &email,
-            token_key,
-            expiration_config,
-            mailer,
-        ))?;
+    verification::verify_email_request(&fpr, &email, token_key, expiration_config, mailer).await?;
     Ok("Verification email requested!".into())
 }
 
 #[get("/verify/email?<token>")]
 #[tracing::instrument]
-pub fn verify_email(token: String, token_key: State<TokenKey>) -> Result<Template, anyhow::Error> {
+pub async fn verify_email(token: String, token_key: &State<TokenKey>) -> Result<Template, AnyhowErrorResponse> {
     let email_token = SignedEmailVerificationToken::from(token);
     let token_key = token_key.inner();
 
@@ -74,19 +66,17 @@ const COOKIE_KEY: &str = "auth_challenge";
 
 #[get("/verify/name_start?<fpr>")]
 #[tracing::instrument]
-pub fn verify_name_start(
+pub async fn verify_name_start(
     fpr: String,
-    auth_system: State<AuthSystem>,
-    mut cookies: Cookies,
-) -> Result<Redirect, anyhow::Error> {
+    auth_system: &State<AuthSystem>,
+    cookies: &CookieJar<'_>,
+) -> Result<Redirect, AnyhowErrorResponse> {
     let fpr = Fingerprint::from_str(fpr.as_str())?;
     let auth_system = auth_system.inner();
 
-    let (auth_url, cookie_data) = AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(verification::verify_name_start(fpr, auth_system))?;
+    let (auth_url, cookie_data) = verification::verify_name_start(fpr, auth_system).await?;
 
-    let cookie = Cookie::build(COOKIE_KEY, serde_json::to_string(&cookie_data)?)
+    let cookie = Cookie::build(COOKIE_KEY, serde_json::to_string(&cookie_data).map_err(|e| anyhow!(e))?)
         .same_site(SameSite::None)
         .secure(true)
         .finish();
@@ -97,74 +87,78 @@ pub fn verify_name_start(
 
 #[get("/verify/name_code?<state>&<code>")]
 #[tracing::instrument]
-pub fn verify_oidc_code(
-    state: String,
-    code: String,
-    auth_system: State<AuthSystem>,
-    cookies: Cookies,
-    token_key: State<TokenKey>,
-    expiration_config: State<ExpirationConfig>,
-) -> Result<Template, anyhow::Error> {
+pub async fn verify_oidc_code(
+    state: &str,
+    code: &str,
+    auth_system: &State<AuthSystem>,
+    cookies: &CookieJar<'_>,
+    token_key: &State<TokenKey>,
+    expiration_config: &State<ExpirationConfig>,
+) -> Result<Template, AnyhowErrorResponse> {
     verify_name_auth_system(
-        Some(state),
-        code.as_str(),
+        Some(&state.to_string()),
+        code,
         auth_system,
         cookies,
         token_key,
         expiration_config,
     )
+    .await
+    .map_err(|e| e.into())
 }
 
 #[get("/verify/saml/metadata")]
 #[tracing::instrument]
-pub fn verify_saml_metadata(auth_system: State<AuthSystem>) -> Result<String, anyhow::Error> {
+pub async fn verify_saml_metadata(auth_system: &State<AuthSystem>) -> Result<String, AnyhowErrorResponse> {
     match auth_system.inner() {
         AuthSystem::Saml(saml) => Ok(saml.get_metadata().to_string()),
-        AuthSystem::Oidc(_) => Err(anyhow!("SAML metadata requested for OIDC AuthSystem!")),
+        AuthSystem::Oidc(_) => Err(anyhow!("SAML metadata requested for OIDC AuthSystem!").into()),
     }
 }
 
 #[post("/verify/saml/slo")]
 #[tracing::instrument]
-pub fn verify_saml_slo() -> Result<String, anyhow::Error> {
-    Err(anyhow!("SAML Single Logout Service is not implemented!"))
+pub async fn verify_saml_slo() -> Result<String, AnyhowErrorResponse> {
+    Err(anyhow!("SAML Single Logout Service is not implemented!").into())
 }
 
 #[derive(FromForm, Debug)]
 pub struct AssertionConsumerServiceMessage {
-    #[form(field = "SAMLResponse")]
+    #[field(name = "SAMLResponse")]
     saml_response: String,
-    #[form(field = "RelayState")]
+    #[field(name = "RelayState")]
     relay_state: Option<String>,
 }
 
 #[post("/verify/saml/acs", data = "<acs_message>")]
 #[tracing::instrument]
-pub fn verify_saml_acs(
+pub async fn verify_saml_acs(
     acs_message: Form<AssertionConsumerServiceMessage>,
-    auth_system: State<AuthSystem>,
-    cookies: Cookies,
-    token_key: State<TokenKey>,
-    expiration_config: State<ExpirationConfig>,
-) -> Result<Template, anyhow::Error> {
+    auth_system: &State<AuthSystem>,
+    cookies: &CookieJar<'_>,
+    token_key: &State<TokenKey>,
+    expiration_config: &State<ExpirationConfig>,
+) -> Result<Template, AnyhowErrorResponse> {
     verify_name_auth_system(
-        acs_message.0.relay_state,
-        &acs_message.0.saml_response,
+        acs_message.relay_state.as_ref(),
+        &acs_message.saml_response,
         auth_system,
         cookies,
         token_key,
         expiration_config,
     )
+    .await
+    .map_err(|e| e.into())
 }
 
 #[tracing::instrument]
-fn verify_name_auth_system(
-    auth_state: Option<String>,
+async fn verify_name_auth_system(
+    auth_state: Option<&String>,
     auth_response: &str,
-    auth_system: State<AuthSystem>,
-    mut cookies: Cookies,
-    token_key: State<TokenKey>,
-    expiration_config: State<ExpirationConfig>,
+    auth_system: &State<AuthSystem>,
+    cookies: &CookieJar<'_>,
+    token_key: &State<TokenKey>,
+    expiration_config: &State<ExpirationConfig>,
 ) -> Result<Template, anyhow::Error> {
     let cookie = cookies
         .get_private(COOKIE_KEY)
@@ -175,16 +169,15 @@ fn verify_name_auth_system(
     let token_key = token_key.inner();
     let expiration_config = expiration_config.inner();
 
-    let (name_tokens, email_tokens) = AsyncHelper::new().expect("Failed to create async runtime.").wait_for(
-        verification::verify_name_auth_system(
-            auth_state,
-            auth_response,
-            cookie_data,
-            auth_system,
-            token_key,
-            expiration_config,
-        ),
-    )?;
+    let (name_tokens, email_tokens) = verification::verify_name_auth_system(
+        auth_state,
+        auth_response,
+        cookie_data,
+        auth_system,
+        token_key,
+        expiration_config,
+    )
+    .await?;
 
     cookies.remove_private(cookie);
 
@@ -265,23 +258,22 @@ pub struct ConfirmPayload {
 
 #[post("/verify/confirm", data = "<payload>")]
 #[tracing::instrument]
-pub fn verify_confirm(
+pub async fn verify_confirm(
     payload: Form<ConfirmPayload>,
     submitter_db: SubmitterDBConn,
-    keystore: State<'_, KeyStoreHolder>,
-    token_key: State<TokenKey>,
-) -> Result<String, anyhow::Error> {
+    keystore: &State<KeyStoreHolder>,
+    token_key: &State<TokenKey>,
+) -> Result<String, AnyhowErrorResponse> {
     let submitter_db = DBWrapper {
-        db: &DieselSQliteDB { conn: &submitter_db.0 },
+        db: &DieselSQliteDB { conn: submitter_db },
     };
-    AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(verify_confirm_async(
-            payload.0,
-            &submitter_db,
-            &*keystore.inner().get_key_store(),
-            token_key.inner(),
-        ))
+    verify_confirm_async(
+        payload.into_inner(),
+        &submitter_db,
+        &*keystore.inner().get_key_store(),
+        token_key.inner(),
+    )
+    .await
 }
 
 #[tracing::instrument]
@@ -290,7 +282,7 @@ async fn verify_confirm_async(
     submitter_db: &DBWrapper<'_>,
     keystore: &(impl KeyStore + ?Sized),
     token_key: &TokenKey,
-) -> Result<String, anyhow::Error> {
+) -> Result<String, AnyhowErrorResponse> {
     if let Some(name_tokens) = payload.name_token {
         let name_tokens = name_tokens.split(':');
         for name_token in name_tokens {

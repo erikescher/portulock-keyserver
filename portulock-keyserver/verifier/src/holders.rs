@@ -18,7 +18,7 @@ pub enum KeyStoreHolder {
 }
 
 #[derive(Debug)] // TODO do not print secret to logs
-pub struct InternalSecretHolder(pub(crate) String);
+pub struct InstanceSecretHolder(pub(crate) String);
 
 impl KeyStoreHolder {
     pub fn get_key_store(&self) -> Box<dyn KeyStore + '_> {

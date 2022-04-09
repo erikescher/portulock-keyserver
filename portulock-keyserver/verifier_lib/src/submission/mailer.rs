@@ -17,7 +17,7 @@ use crate::verification::challenges::NameVerificationChallenge;
 use crate::verification::tokens::{SignedEmailVerificationToken, SignedToken};
 
 #[async_trait]
-pub trait Mailer: Debug {
+pub trait Mailer: Debug + Send + Sync {
     async fn send_signed_email_challenge(
         &self,
         token: &SignedEmailVerificationToken,

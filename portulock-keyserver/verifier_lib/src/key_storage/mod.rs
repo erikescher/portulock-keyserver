@@ -44,7 +44,7 @@ pub async fn certify_and_publish_approved_cert(
 }
 
 #[async_trait]
-pub trait KeyStore: Debug {
+pub trait KeyStore: Debug + Send + Sync {
     async fn store(&self, cert: &Cert) -> Result<(), anyhow::Error>;
     async fn list_by_email(&self, email: &str) -> Result<Vec<Cert>, anyhow::Error>;
     async fn get_by_fpr(&self, fpr: &Fingerprint) -> Result<Option<Cert>, anyhow::Error>;

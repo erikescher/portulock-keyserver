@@ -7,28 +7,24 @@ use anyhow::anyhow;
 use rocket::State;
 use verifier_lib::db_new::DBWrapper;
 
-use crate::async_helper::AsyncHelper;
 use crate::db::diesel_sqlite::DieselSQliteDB;
 use crate::db::SubmitterDBConn;
-use crate::holders::InternalSecretHolder;
-use crate::rocket_helpers::LimitedString;
+use crate::error::AnyhowErrorResponse;
+use crate::holders::InstanceSecretHolder;
 
 #[post("/internal/db_cleanup", data = "<secret>")]
 #[tracing::instrument]
-pub fn db_cleanup(
-    secret: LimitedString,
+pub async fn db_cleanup(
+    secret: String,
     submitter_db: SubmitterDBConn,
-    internal_secret: State<InternalSecretHolder>,
-) -> Result<(), anyhow::Error> {
-    if internal_secret.inner().0 != String::from(secret) {
-        return Err(anyhow!("Invalid InternalSecret provided!"));
+    internal_secret: &State<InstanceSecretHolder>,
+) -> Result<(), AnyhowErrorResponse> {
+    if internal_secret.inner().0 != secret {
+        return Err(anyhow!("Invalid InternalSecret provided!").into());
     }
     let submitter_db = DBWrapper {
-        db: &DieselSQliteDB { conn: &submitter_db.0 },
+        db: &DieselSQliteDB { conn: submitter_db },
     };
 
-    AsyncHelper::new()
-        .expect("Failed to create async runtime.")
-        .wait_for(submitter_db.maintain())?;
-    Ok(())
+    submitter_db.maintain().await.map_err(AnyhowErrorResponse::from)
 }

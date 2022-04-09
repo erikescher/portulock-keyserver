@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use rocket_contrib::database;
+use rocket_sync_db_pools::database;
 
 pub mod diesel_sqlite;
 mod diesel_types;
