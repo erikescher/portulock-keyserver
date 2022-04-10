@@ -116,7 +116,7 @@ server_image_verifier:
   image: docker
   stage: images
   services:
-    - docker
+    - docker:dind
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -138,7 +138,7 @@ server_image_aggregator:
   image: docker
   stage: images
   services:
-    - docker
+    - docker:dind
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -269,7 +269,7 @@ reverse_proxy_image:
   image: docker
   stage: images
   services:
-    - docker
+    - docker:dind
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
