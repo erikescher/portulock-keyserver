@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 variables:
+  DOCKER_TLS_CERTDIR: "/certs"
   # The "Description" parameter is not well documented, but it causes the variable to be prepopulated on
   # the "Run Pipeline" page, and it displays the description.
   TASK_NAME:
@@ -114,6 +115,8 @@ server_image_verifier:
       - "Dockerfile"
   image: docker
   stage: images
+  services:
+    - docker
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -134,6 +137,8 @@ server_image_aggregator:
       - "Dockerfile"
   image: docker
   stage: images
+  services:
+    - docker
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
@@ -263,6 +268,8 @@ reverse_proxy_image:
       - "Dockerfile"
   image: docker
   stage: images
+  services:
+    - docker
   before_script:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
