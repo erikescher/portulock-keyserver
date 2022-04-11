@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, Message, SmtpTransport, Transport};
+use serde::Deserialize;
 use shared::types::Email;
 
 use crate::management::ManagementToken;
@@ -51,10 +52,49 @@ impl Debug for SmtpMailer {
     }
 }
 
+#[derive(Deserialize, Debug)]
+pub struct MailerConfig {
+    #[serde(rename = "smtp_user")]
+    user: String,
+    #[serde(rename = "smtp_pass")]
+    pass: String,
+    #[serde(rename = "smtp_port")]
+    port: u16,
+    #[serde(rename = "smtp_host")]
+    host: String,
+    #[serde(rename = "smtp_from")]
+    from: String,
+    #[serde(rename = "smtp_security")]
+    #[serde(default)]
+    connection_security: SmtpConnectionSecurity,
+}
+
+impl MailerConfig {
+    pub fn create_mailer(&self, endpoint_url: &str) -> SmtpMailer {
+        SmtpMailer::new(
+            &self.host,
+            &self.user,
+            &self.pass,
+            self.port,
+            &self.from,
+            endpoint_url,
+            &self.connection_security,
+        )
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum SmtpConnectionSecurity {
     None,
     Tls,
     StartTls,
+}
+
+impl Default for SmtpConnectionSecurity {
+    fn default() -> Self {
+        Self::Tls
+    }
 }
 
 impl SmtpMailer {

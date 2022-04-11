@@ -26,7 +26,7 @@ use verifier_lib::db_new::DBWrapper;
 use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
 use verifier_lib::key_storage::openpgp_ca_lib::OpenPGPCALib;
 use verifier_lib::management::random_string;
-use verifier_lib::submission::mailer::{SmtpConnectionSecurity, SmtpMailer};
+use verifier_lib::submission::mailer::MailerConfig;
 use verifier_lib::submission::SubmissionConfig;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification::{TokenKey, VerificationConfig};
@@ -165,22 +165,9 @@ async fn rocket() -> Rocket<Build> {
             "Configuration: Mailer",
             |rocket: Rocket<Build>| async move {
                 let external_url = &rocket.state::<ExternalURLHolder>().unwrap().0;
-                let smtp_security = match rocket.figment().extract_inner("smtp_security").unwrap_or("tls") {
-                    "tls" => SmtpConnectionSecurity::Tls,
-                    "starttls" => SmtpConnectionSecurity::StartTls,
-                    "none" => SmtpConnectionSecurity::None,
-                    other => panic!(
-                        "Unknown value for smtp_security: {}. Known values: tls, starttls, none.",
-                        other
-                    ),
-                };
-                let port: u16 = rocket.figment().extract_inner("smtp_port").unwrap();
-                let host: String = rocket.figment().extract_inner("smtp_host").unwrap();
-                let user: String = rocket.figment().extract_inner("smtp_user").unwrap();
-                let pass: String = rocket.figment().extract_inner("smtp_pass").unwrap();
-                let from: String = rocket.figment().extract_inner("smtp_from").unwrap();
+                let mailer_config: MailerConfig = rocket.figment().extract().expect("Mailer configuration");
+                let mailer = mailer_config.create_mailer(external_url);
 
-                let mailer = SmtpMailer::new(&host, &user, &pass, port, &from, external_url, &smtp_security);
                 rocket.manage(MailerHolder::SmtpMailer(mailer))
             },
         ))
