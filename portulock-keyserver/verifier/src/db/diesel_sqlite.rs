@@ -5,7 +5,7 @@ use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::{Cert, Fingerprint};
 use shared::types::Email;
-use shared::utils::armor::armor_signature;
+use shared::utils::armor::{armor_signature, export_armored_cert};
 use shared::utils::merge_certs;
 use tracing::info;
 use verifier_lib::certs::CertWithSingleUID;
@@ -283,7 +283,7 @@ impl DB for DieselSQliteDB {
                 diesel::insert_into(pending_keys)
                     .values(PendingCertWithoutUIDsEntry {
                         fpr: new_cert.fingerprint().to_hex(),
-                        cert: new_cert.to_string(),
+                        cert: export_armored_cert(&new_cert),
                         exp: NaiveDateTime::from_timestamp(expiration as i64, 0),
                     })
                     .execute(connection)?;
@@ -306,7 +306,7 @@ impl DB for DieselSQliteDB {
                             .unwrap_or_default()
                             .unwrap_or_default(),
                         comment: cert_holder.userid().comment().unwrap_or_default().unwrap_or_default(),
-                        uid_packets: cert_holder.cert().to_string(),
+                        uid_packets: export_armored_cert(cert_holder.cert()),
                         exp: NaiveDateTime::from_timestamp(expiration as i64, 0),
                     })
                     .execute(connection)?;
