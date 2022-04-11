@@ -3,6 +3,8 @@
 
 variables:
   DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_BUILDKIT: "1"
   # The "Description" parameter is not well documented, but it causes the variable to be prepopulated on
   # the "Run Pipeline" page, and it displays the description.
   TASK_NAME:
@@ -121,9 +123,7 @@ server_image_verifier:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target verifier --tag verifier --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
-    - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
-    - docker tag verifier $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
+    - docker build --target verifier --tag $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID --tag $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/verifier:$CI_COMMIT_BRANCH
 
@@ -143,9 +143,7 @@ server_image_aggregator:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target aggregator --tag aggregator --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
-    - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
-    - docker tag aggregator $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
+    - docker build --target aggregator --tag $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID --tag $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/aggregator:$CI_COMMIT_BRANCH
 
@@ -274,9 +272,7 @@ reverse_proxy_image:
     - echo "$CI_REGISTRY_IMAGE $CI_JOB_ID $CI_COMMIT_BRANCH"
   script:
     - docker login --username="$CI_REGISTRY_USER" --password="$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build --target reverse_proxy --tag reverse_proxy --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
-    - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
-    - docker tag reverse_proxy $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
+    - docker build --target reverse_proxy --tag $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID --tag $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH --label "git-commit=$CI_COMMIT_SHA" --label "ci-server=$CI_SERVER_HOST" --label "ci-job-id=$CI_JOB_ID" --label "git-branch=$CI_COMMIT_BRANCH" .
     - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_JOB_ID
     - docker push $CI_REGISTRY_IMAGE/reverse_proxy:$CI_COMMIT_BRANCH
   needs: []
