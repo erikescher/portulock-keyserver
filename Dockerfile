@@ -1,7 +1,7 @@
 # Copyright (c) 2021. Erik Escher. PortuLock Keyserver. GPL-3.0-only.
 # SPDX-License-Identifier: GPL-3.0-only
 
-FROM rustlang/rust@sha256:c61103d66375933e7ae58ff5979b2d91888dff44bcbf3265a17c9f92922b306c as rust_builder_base
+FROM rust as rust_builder_base
 RUN apt update && apt install --yes clang libclang-dev llvm llvm-dev librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
 WORKDIR /build
 

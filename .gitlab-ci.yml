@@ -27,7 +27,7 @@ server_build:
     - changes:
       - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: build
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
@@ -48,7 +48,7 @@ server_test:
     - changes:
       - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: test
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
@@ -64,7 +64,7 @@ server_lint:
     - changes:
       - "portulock-keyserver/**/*"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: quality
   before_script:
     - apt update && apt install --yes clang libclang-dev llvm llvm-dev lcov python3-pip librust-clang-sys* libxml2 openssl xmlsec1 libxmlsec1*
@@ -82,7 +82,7 @@ server_format:
       - "portulock-keyserver/**/*.rs"
       - "portulock-keyserver/rustfmt.toml"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: quality
   before_script:
     - cd portulock-keyserver
@@ -98,7 +98,7 @@ server_audit:
       - "portulock-keyserver/**/Cargo.toml"
       - "portulock-keyserver/.cargo/audit.toml"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: audit
   before_script:
     - cargo install cargo-audit
@@ -176,7 +176,7 @@ wasm_lint:
     - changes:
       - "openpgp-trustsign-wasm/**/*"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: quality
   before_script:
     - rustup component add clippy
@@ -193,7 +193,7 @@ wasm_format:
       - "openpgp-trustsign-wasm/**/*.rs"
       - "openpgp-trustsign-wasm/rustfmt.toml"
       - ".gitlab-ci.yml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: quality
   before_script:
     - rustup component add rustfmt
@@ -209,7 +209,7 @@ wasm_audit:
       - "openpgp-trustsign-wasm/Cargo.lock"
       - "openpgp-trustsign-wasm/**/Cargo.toml"
       - "openpgp-trustsign-wasm/.cargo/audit.toml"
-  image: rustlang/rust:nightly
+  image: rust
   stage: audit
   before_script:
     - cargo install cargo-audit
