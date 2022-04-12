@@ -173,7 +173,11 @@ impl OpenPGPCALib {
     #[tracing::instrument]
     pub fn regenerate_wkd(&self) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
-        remove_dir_all(self.get_wkd_path())?;
+        let path = self.path.clone() + ".well-known/openpgpkey/" + self.domain.as_str() + "/hu/";
+        let path = Path::new(&path);
+        if path.is_dir() {
+            remove_dir_all(path)?;
+        }
         ca.export_wkd(self.domain.as_str(), self.get_wkd_path())?;
         Ok(())
     }
