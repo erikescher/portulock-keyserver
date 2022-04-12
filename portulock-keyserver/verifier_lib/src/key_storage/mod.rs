@@ -57,6 +57,7 @@ pub trait KeyStore: Debug + Send + Sync {
         revocations: Vec<Signature>,
     ) -> Result<(), anyhow::Error>;
     async fn get_stored_revocations(&self, fpr: &Fingerprint) -> Result<Vec<Signature>, anyhow::Error>;
+    fn perform_maintenance(&self) -> Result<(), anyhow::Error>;
 }
 
 #[async_trait]

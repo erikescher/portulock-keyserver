@@ -17,14 +17,11 @@ pub enum KeyStoreHolder {
     MultiOpenPGPCALib(MultiOpenPGPCALib),
 }
 
-#[derive(Debug)] // TODO do not print secret to logs
-pub struct InstanceSecretHolder(pub(crate) String);
-
 impl KeyStoreHolder {
     pub fn get_key_store(&self) -> Box<dyn KeyStore + '_> {
         match self {
-            KeyStoreHolder::OpenPGPCALib(k) => Box::new(k),
-            KeyStoreHolder::MultiOpenPGPCALib(k) => Box::new(k),
+            KeyStoreHolder::OpenPGPCALib(k) => Box::new(k.clone()),
+            KeyStoreHolder::MultiOpenPGPCALib(k) => Box::new(k.clone()),
         }
     }
 }

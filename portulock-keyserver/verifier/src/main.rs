@@ -13,7 +13,7 @@ extern crate diesel_migrations;
 extern crate rocket;
 
 use std::collections::HashMap;
-use std::{thread, time};
+use std::time;
 
 use chrono::Duration;
 use num_traits::cast::ToPrimitive;
@@ -25,25 +25,24 @@ use tracing::info;
 use verifier_lib::db_new::DBWrapper;
 use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
 use verifier_lib::key_storage::openpgp_ca_lib::OpenPGPCALib;
-use verifier_lib::management::random_string;
 use verifier_lib::submission::mailer::MailerConfig;
 use verifier_lib::submission::SubmissionConfig;
 use verifier_lib::utils_verifier::expiration::ExpirationConfig;
 use verifier_lib::verification::{TokenKey, VerificationConfig};
 use verifier_lib::DeletionConfig;
 
-use crate::holders::{ExternalURLHolder, InstanceSecretHolder, KeyStoreHolder, MailerHolder};
+use crate::holders::{ExternalURLHolder, KeyStoreHolder, MailerHolder};
 
 pub mod async_helper;
 mod db;
 mod error;
 mod holders;
-mod internal_endpoint;
 mod management_endpoint;
 mod submission_endpoint;
 mod verification_endpoint;
 
 use db::SubmitterDBConn;
+use verifier_lib::key_storage::KeyStore;
 
 use crate::db::diesel_sqlite::DieselSQliteDB;
 
@@ -77,7 +76,6 @@ async fn rocket() -> Rocket<Build> {
                 management_endpoint::status_page,
                 management_endpoint::status_page_json,
                 management_endpoint::authenticated_download,
-                internal_endpoint::db_cleanup,
             ],
         )
         .attach(Template::fairing())
@@ -145,6 +143,7 @@ async fn rocket() -> Rocket<Build> {
                     .collect();
                 rocket
                     .manage(SubmissionConfig::new(allowed_domains, allowed_certifying_keys))
+                    .manage(keystore.clone())
                     .manage(KeyStoreHolder::MultiOpenPGPCALib(keystore))
             },
         ))
@@ -198,10 +197,6 @@ async fn rocket() -> Rocket<Build> {
                 rocket.manage(deletion_config)
             },
         ))
-        .attach(AdHoc::on_ignite(
-            "Instance Secret",
-            |rocket: Rocket<Build>| async move { rocket.manage(InstanceSecretHolder(random_string(32))) },
-        ))
         .attach(AdHoc::on_ignite("Migrations", |rocket: Rocket<Build>| async move {
             let db_conn = SubmitterDBConn::get_one(&rocket)
                 .await
@@ -213,24 +208,39 @@ async fn rocket() -> Rocket<Build> {
             submitter_db.migrate().await.expect("DB Migrations failed!");
             rocket
         }))
-        .attach(AdHoc::on_liftoff("Database Maintainance", |rocket: &Rocket<Orbit>| {
+        .attach(AdHoc::on_liftoff("Database Maintenance", |rocket: &Rocket<Orbit>| {
             Box::pin(async move {
-                // Database Maintainance
-                let port: u16 = rocket.figment().extract_inner("port").expect("Port missing!");
-                let internal_secret = rocket.state::<InstanceSecretHolder>().unwrap().0.clone();
+                let db_conn = SubmitterDBConn::get_one(rocket)
+                    .await
+                    .expect("Failed to get db connection for migrations.");
 
-                thread::spawn(move || {
-                    let url = format!("http://127.0.0.1:{}/internal/db_cleanup", port);
+                tokio::spawn(async {
+                    // TODO: if the DB connection dies, maintenance might continue to fail until the server restarts
+
+                    let submitter_db = DBWrapper {
+                        db: &DieselSQliteDB { conn: db_conn },
+                    };
                     loop {
-                        match reqwest::blocking::Client::new()
-                            .post(url.as_str())
-                            .body(internal_secret.clone())
-                            .send()
-                        {
+                        match submitter_db.maintain().await {
                             Ok(_) => println!("Database maintenance performed successfully!"),
                             Err(e) => println!("Error during database maintenance: {}", e),
                         };
-                        thread::sleep(time::Duration::from_secs(60 * 60 * 8))
+                        tokio::time::sleep(time::Duration::from_secs(60 * 60 * 8)).await
+                    }
+                });
+            })
+        }))
+        .attach(AdHoc::on_liftoff("Keystore Maintenance", |rocket: &Rocket<Orbit>| {
+            let keystore: &MultiOpenPGPCALib = rocket.state().expect("Failed to get Keystore for maintenance!");
+            let keystore = keystore.clone();
+            Box::pin(async move {
+                tokio::spawn(async move {
+                    loop {
+                        match keystore.perform_maintenance() {
+                            Ok(_) => info!("Keystore maintenance performed!"),
+                            Err(e) => error!("Error during keystore maintenance: {:#?}", e),
+                        };
+                        tokio::time::sleep(time::Duration::from_secs(60 * 60 * 8)).await
                     }
                 });
             })

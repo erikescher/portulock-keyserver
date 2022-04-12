@@ -164,13 +164,6 @@ impl OpenPGPCALib {
     }
 
     #[tracing::instrument]
-    pub fn perform_maintenance(&self) -> Result<(), anyhow::Error> {
-        let ca = self.get_ca()?;
-        ca.certs_refresh_ca_certifications(self.threshold, self.duration)?;
-        self.delete_delisted_certs()
-    }
-
-    #[tracing::instrument]
     pub fn regenerate_wkd(&self) -> Result<(), anyhow::Error> {
         let ca = self.get_ca()?;
         let path = self.path.clone() + ".well-known/openpgpkey/" + self.domain.as_str() + "/hu/";
@@ -184,7 +177,7 @@ impl OpenPGPCALib {
 }
 
 #[async_trait]
-impl KeyStore for &OpenPGPCALib {
+impl KeyStore for OpenPGPCALib {
     #[tracing::instrument]
     async fn store(&self, cert: &Cert) -> Result<(), anyhow::Error> {
         let emails = emails_from_cert(cert);
@@ -277,5 +270,12 @@ impl KeyStore for &OpenPGPCALib {
             .filter_map(|rev| revocations_from_string(rev.revocation).ok())
             .flatten()
             .collect())
+    }
+
+    #[tracing::instrument]
+    fn perform_maintenance(&self) -> Result<(), anyhow::Error> {
+        let ca = self.get_ca()?;
+        ca.certs_refresh_ca_certifications(self.threshold, self.duration)?;
+        self.delete_delisted_certs()
     }
 }

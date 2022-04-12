@@ -39,18 +39,10 @@ impl MultiOpenPGPCALib {
     fn get_all_keystores(&self) -> Vec<&OpenPGPCALib> {
         self.keystores.values().collect()
     }
-
-    #[tracing::instrument]
-    pub fn perform_maintenance(&self) -> Result<(), anyhow::Error> {
-        for keystore in self.get_all_keystores() {
-            keystore.perform_maintenance()?;
-        }
-        Ok(())
-    }
 }
 
 #[async_trait]
-impl KeyStore for &MultiOpenPGPCALib {
+impl KeyStore for MultiOpenPGPCALib {
     #[tracing::instrument]
     async fn store(&self, cert: &Cert) -> Result<(), anyhow::Error> {
         for (domain, cert) in split_cert_by_domain(cert) {
@@ -131,6 +123,14 @@ impl KeyStore for &MultiOpenPGPCALib {
         #[allow(clippy::mutable_key_type)]
         let hashset: HashSet<Signature, RandomState> = HashSet::from_iter(stored_revocations.into_iter());
         Ok(hashset.into_iter().collect())
+    }
+
+    #[tracing::instrument]
+    fn perform_maintenance(&self) -> Result<(), anyhow::Error> {
+        for keystore in self.get_all_keystores() {
+            keystore.perform_maintenance()?;
+        }
+        Ok(())
     }
 }
 
