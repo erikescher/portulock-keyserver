@@ -116,11 +116,11 @@ async fn rocket() -> Rocket<Build> {
                             .unwrap();
                     match openpgp_ca.regenerate_wkd() {
                         Ok(_) => {
-                            println!("Regenerated WKD for domain {} on startup.", allowed_domain)
+                            info!("Regenerated WKD for domain {} on startup.", allowed_domain)
                         }
                         Err(e) => {
-                            println!(
-                                "Failed to regenerate WKD for domain {} due to error: {}",
+                            error!(
+                                "Failed to regenerate WKD for domain {} due to error: {:#?}",
                                 allowed_domain, e
                             )
                         }
@@ -132,8 +132,8 @@ async fn rocket() -> Rocket<Build> {
                 let keystore_clone = keystore.clone();
                 thread::spawn(move || loop {
                     match keystore_clone.perform_maintenance() {
-                        Ok(_) => println!("CA maintenance performed!"),
-                        Err(e) => println!("Error during CA maintenance: {}", e),
+                        Ok(_) => info!("CA maintenance performed!"),
+                        Err(e) => error!("Error during CA maintenance: {:#?}", e),
                     };
                     thread::sleep(time::Duration::from_secs(60 * 60 * 8))
                 });
