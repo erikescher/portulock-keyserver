@@ -85,6 +85,7 @@ server_format:
   image: rust
   stage: quality
   before_script:
+    - rustup component add rustfmt
     - cd portulock-keyserver
   needs: []
   script:

@@ -9,11 +9,11 @@ FROM rust_builder_base as rust_builder
 COPY ./portulock-keyserver .
 RUN cargo build --release
 
-FROM debian:buster as rust_runner
+FROM debian:bullseye as rust_runner
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV ROCKET_ADDRESS="0.0.0.0"
 ENV RUST_BACKTRACE="full"
-RUN apt update && apt install -y libssl1.1 libsqlite3-0 nettle-bin libmariadb3 git rustc cargo clang libclang-dev make pkg-config nettle-dev libssl-dev capnproto libsqlite3-dev libxml2 openssl xmlsec1 libxmlsec1*
+RUN apt update && apt install -y libssl1.1 libsqlite3-0 nettle-bin libmariadb3 git rustc cargo clang libclang-dev make pkg-config nettle-dev libssl-dev capnproto libsqlite3-dev libxml2 openssl xmlsec1 libxmlsec1* libnettle8
 WORKDIR /app
 
 FROM rust_runner as verifier

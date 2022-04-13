@@ -125,14 +125,6 @@ async fn rocket() -> Rocket<Build> {
                 }
                 let keystore = MultiOpenPGPCALib::new(keystores);
 
-                let keystore_clone = keystore.clone();
-                thread::spawn(move || loop {
-                    match keystore_clone.perform_maintenance() {
-                        Ok(_) => info!("CA maintenance performed!"),
-                        Err(e) => error!("Error during CA maintenance: {:#?}", e),
-                    };
-                    thread::sleep(time::Duration::from_secs(60 * 60 * 8))
-                });
                 let allowed_certifying_keys: Vec<String> =
                     figment.extract_inner("allowed_certifying_keys").unwrap_or_default();
                 let allowed_certifying_keys = allowed_certifying_keys

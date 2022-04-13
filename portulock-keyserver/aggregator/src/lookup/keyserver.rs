@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-use sequoia_net::{KeyServer, Policy};
+use sequoia_net::Policy;
 use sequoia_openpgp::{Cert, KeyHandle};
 use serde::Deserialize;
 use shared::types::Email;
@@ -16,15 +16,15 @@ pub struct Keyserver {
 
 impl Keyserver {
     pub async fn lookup_email(&self, email: &Email) -> Result<Vec<Cert>, anyhow::Error> {
-        self.get_keyserver()?.search(email).await
+        sequoia_net::KeyServer::new(Policy::Encrypted, self.url.as_str())?
+            .search(email)
+            .await
     }
 
     pub async fn lookup_locator(&self, handle: &KeyHandle) -> Result<Cert, anyhow::Error> {
-        self.get_keyserver()?.get(handle.clone()).await
-    }
-
-    fn get_keyserver(&self) -> Result<KeyServer, anyhow::Error> {
-        sequoia_net::KeyServer::new(Policy::Encrypted, self.url.as_str())
+        sequoia_net::KeyServer::new(Policy::Encrypted, self.url.as_str())?
+            .get(handle.clone())
+            .await
     }
 }
 

@@ -5,3 +5,11 @@ members = [
     "verifier",
     "verifier_lib"
 ]
+
+[patch.crates-io.sequoia-net]
+git = "https://gitlab.com/portulock/sequoia/"
+branch = "send-futures"
+
+[patch.crates-io.sequoia-openpgp]
+git = "https://gitlab.com/portulock/sequoia/"
+branch = "send-futures"
