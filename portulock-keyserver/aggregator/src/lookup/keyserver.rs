@@ -8,8 +8,6 @@ use sequoia_openpgp::{Cert, KeyHandle};
 use serde::Deserialize;
 use shared::types::Email;
 
-use crate::async_helper::AsyncHelper;
-
 #[derive(Clone, Eq, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct Keyserver {
@@ -18,11 +16,11 @@ pub struct Keyserver {
 
 impl Keyserver {
     pub async fn lookup_email(&self, email: &Email) -> Result<Vec<Cert>, anyhow::Error> {
-        AsyncHelper::new()?.wait_for(async move { self.get_keyserver()?.search(email).await })
+        self.get_keyserver()?.search(email).await
     }
 
     pub async fn lookup_locator(&self, handle: &KeyHandle) -> Result<Cert, anyhow::Error> {
-        AsyncHelper::new()?.wait_for(async move { self.get_keyserver()?.get(handle.clone()).await })
+        self.get_keyserver()?.get(handle.clone()).await
     }
 
     fn get_keyserver(&self) -> Result<KeyServer, anyhow::Error> {

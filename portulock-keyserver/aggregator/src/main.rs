@@ -8,10 +8,8 @@ extern crate rocket;
 
 use rocket::{Build, Rocket};
 
-use crate::async_helper::AsyncHelper;
 use crate::lookup::LookupConfig;
 
-mod async_helper;
 mod certification;
 mod error;
 mod lookup;
@@ -23,9 +21,7 @@ mod lookup_endpoint;
 fn rocket() -> Rocket<Build> {
     tracing_subscriber::fmt::init();
 
-    let rocket = rocket::build()
-        .mount("/", routes![lookup_endpoint::lookup,])
-        .manage(AsyncHelper::new());
+    let rocket = rocket::build().mount("/", routes![lookup_endpoint::lookup,]);
 
     let figment = rocket.figment();
     let lookup_config: LookupConfig = figment.extract_inner("lookup_config").expect("Lookup Config missing!");
