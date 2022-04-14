@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 sequoia-openpgp = "1"
 anyhow = "1"
+rand = "0.8"

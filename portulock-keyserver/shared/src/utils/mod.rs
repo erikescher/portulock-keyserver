@@ -14,6 +14,7 @@ use crate::types::Email;
 
 pub mod armor;
 pub mod maps;
+pub mod random;
 
 pub fn merge_certs(certs: Vec<Cert>) -> Vec<Cert> {
     let mut map: HashMap<Fingerprint, Cert> = HashMap::new();

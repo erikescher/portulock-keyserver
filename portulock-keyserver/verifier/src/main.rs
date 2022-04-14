@@ -18,7 +18,7 @@ use num_traits::cast::ToPrimitive;
 use rocket::fairing::AdHoc;
 use rocket::{Build, Orbit, Rocket};
 use rocket_dyn_templates::Template;
-use shared::utils::armor;
+use shared::utils::{armor, random};
 use tracing::info;
 use verifier_lib::db_new::DBWrapper;
 use verifier_lib::key_storage::multi_keystore::MultiOpenPGPCALib;
@@ -41,6 +41,7 @@ mod verification_endpoint;
 
 use db::SubmitterDBConn;
 use verifier_lib::key_storage::KeyStore;
+use verifier_lib::management::random_string;
 
 use crate::db::diesel_sqlite::DieselSQliteDB;
 
@@ -52,7 +53,21 @@ async fn rocket() -> Rocket<Build> {
 
     // TODO convert each AdHoc Fairing to a proper one defined in fairings.rs!
 
-    rocket::build()
+    let figment = rocket::Config::figment()
+        /* Generate a secret key at startup if none is provided.
+         * Different secret_keys across restarts will invalidate cookies causing ongoing SSO authentication to fail.
+         * Different secret_keys among multiple instances in a cluster (currently unsupported due to storage implementations)
+         * would also cause ongoing SSO authentication to fail unless both requests are handled by the same node.
+         */
+        .join(("secret_key", random::random_key()))
+        /* Generate a token_signing_key at startup if none is provided.
+         * Different token_signing_keys across restarts will invalidate verification emails and ongoing SSO authentication attempts.
+         * Different token_signing_keys among multiple instances in a cluster (currently unsupported due to storage implementations)
+         * would also cause verification links and ongoing SSO authentication attempts to fail unless the requests are handled by the same node.
+         */
+        .join(("token_signing_key", random_string(32)));
+
+    rocket::custom(figment)
         .mount(
             "/",
             routes![

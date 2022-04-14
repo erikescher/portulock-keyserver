@@ -7,6 +7,7 @@
 extern crate rocket;
 
 use rocket::{Build, Rocket};
+use shared::utils::random;
 
 use crate::lookup::LookupConfig;
 
@@ -21,7 +22,13 @@ mod lookup_endpoint;
 fn rocket() -> Rocket<Build> {
     tracing_subscriber::fmt::init();
 
-    let rocket = rocket::build().mount("/", routes![lookup_endpoint::lookup,]);
+    let figment = rocket::Config::figment()
+        /* Compiling aggregator together with verifier enables the secret feature of rocket.
+         * This feature is unused in aggregator but still requires a secret or will cause launch panics.
+         */
+        .join(("secret_key", random::random_key()));
+
+    let rocket = rocket::custom(figment).mount("/", routes![lookup_endpoint::lookup,]);
 
     let figment = rocket.figment();
     let lookup_config: LookupConfig = figment.extract_inner("lookup_config").expect("Lookup Config missing!");
