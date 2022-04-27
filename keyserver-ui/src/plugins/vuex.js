@@ -13,7 +13,7 @@ const config = {
     state: () => ({
         key_generation: {
             type: 'rsa',
-            curve: '4096',
+            rsaBits: '4096',
             keyExpirationTime: 3 * 365 * 24 * 60 * 60
         },
         validation: {
