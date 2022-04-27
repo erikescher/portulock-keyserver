@@ -9,7 +9,7 @@ variables:
   # the "Run Pipeline" page, and it displays the description.
   TASK_NAME:
     value: ""
-    description: "The task name to run on demand, please pick ONE from this list: audit,rebuild,deploy. Defaults to full pipeline if empty/unset."
+    description: "The task name to run on demand, please pick ONE from this list: audit,rebuild,deploy_demo. Defaults to full pipeline if empty/unset."
 
 
 stages:
@@ -18,7 +18,7 @@ stages:
   - quality
   - audit
   - images
-  - demo
+  - deploy
 
 server_build:
   rules:
@@ -280,9 +280,18 @@ reverse_proxy_image:
 
 deploy_demo:
   rules:
-    - if: '$TASK_NAME == "deploy"'
+    - if: '$TASK_NAME == "deploy_demo"'
     - if: '$CI_COMMIT_BRANCH == "master"'
-  stage: demo
+  stage: deploy
   inherit:
     variables: false
   trigger: portulock/portulock-demo
+
+deploy_dev:
+  rules:
+    - if: '$TASK_NAME == "deploy_dev"'
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  stage: deploy
+  inherit:
+    variables: false
+  trigger: portulock/portulock-dev
