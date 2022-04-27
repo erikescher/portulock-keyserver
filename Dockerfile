@@ -21,6 +21,7 @@ COPY ./portulock-keyserver/verifier/templates ./templates
 COPY --from=rust_builder /build/target/release/verifier /usr/local/bin
 ENV ROCKET_PORT="8084"
 ENV ROCKET_DATABASES="{sqlite={url=\"/app/state/verifier.sqlite\"}}"
+ENV ROCKET_TEMPLATES="/templates"
 EXPOSE 8084
 ENTRYPOINT ["verifier"]
 
