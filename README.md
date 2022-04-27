@@ -33,6 +33,9 @@ system, that users can easily join while also protecting their privacy and the p
 communication partners by requesting information about certificates directly from the 
 respective domains.
 
+## DEMO
+If you simply want to test what this looks like from the user's perspective, check [DEMO.md](DEMO.md) for details.
+
 ## Configuration
 This project uses the [Rocket framework](https://rocket.rs/v0.4/) for its web server components and
 can be configured through its configuration system. This means creating configuration
