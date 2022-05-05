@@ -33,8 +33,14 @@ system, that users can easily join while also protecting their privacy and the p
 communication partners by requesting information about certificates directly from the 
 respective domains.
 
+## Development
+This project is hosted on [GitLab](https://gitlab.com/portulock/portulock-keyserver) and mirrored to 
+[GitHub](https://github.com/erikescher/portulock-keyserver).
+Most development happens on Gitlab but Pull Requests can also be accepted on Github.
+
 ## DEMO
-If you simply want to test what this looks like from the user's perspective, check [DEMO.md](DEMO.md) for details.
+If you simply want to test what this looks like from the user's perspective, check [DEMO.md](DEMO.md) for details 
+including a public demo instance.
 
 ## Configuration
 This project uses the [Rocket framework](https://rocket.rs/v0.4/) for its web server components and
