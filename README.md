@@ -36,7 +36,7 @@ respective domains.
 ## Development
 This project is hosted on [GitLab](https://gitlab.com/portulock/portulock-keyserver) and mirrored to 
 [GitHub](https://github.com/erikescher/portulock-keyserver).
-Most development happens on Gitlab but Pull Requests can also be accepted on Github.
+Most development happens on Gitlab but Pull Requests can also be accepted on GitHub.
 
 ## DEMO
 If you simply want to test what this looks like from the user's perspective, check [DEMO.md](DEMO.md) for details 
@@ -93,9 +93,8 @@ oidc_client_secret = "<REDACTED>"
 ```
 
 ### Aggregator
-The configuration for the Aggregator service consists of a map containing special con-
-figuration for domains with known keyservers and CAs followed by a set of fallbacks
-that will be applied if no domain specific configuration can be found.
+The configuration for the Aggregator service consists of a map containing special configuration for domains with known 
+keyservers and CAs followed by a set of fallbacks that will be applied if no domain specific configuration can be found.
 
 For each entry (both in the special domains and fallbacks) a set of keyservers can be
 defined and the administrator can choose whether to use WKD. The server will retrieve
@@ -219,12 +218,12 @@ For development individual components can be compiled without docker using cargo
 build or compiled and executed using cargo run, reducing compile times and allowing for debugging.
 
 ### License
-This project is released under the GPL license as required by the openpgp-ca-lib library and the
-static linking of the sequoia library, which is available under the LGPL license.
+This project is released under the GPL license as required by the openpgp-ca-lib library and the static linking of the 
+sequoia library, which is available under the LGPL license.
 
 ## Deployment
-This project uses Docker and Docker Compose to simplify dependency management and
-provide a consistent and isolated runtime environment.
+This project uses Docker and Docker Compose to simplify dependency management and provide a consistent and isolated 
+runtime environment.
 
 ### Obtaining the Code
 The source code for PortuLock can be obtained from GitHub using `git clone https://gitlab.com/portulock/portulock-keyserver.git`.
@@ -239,13 +238,12 @@ This fetches the dependencies needed to compile and run the project, compiles th
 from source and builds docker containers, that will be executed later.
 
 ### Starting the Services
-The services can be started by running docker-compose up -d. This will compare the
-currently running services with the ones defined in the docker-compose file, creating,
-starting and stopping them as needed to achieve the defined configuration.
+The services can be started by running docker-compose up -d. This will compare the currently running services with the 
+ones defined in the docker-compose file, creating, starting and stopping them as needed to achieve the defined configuration.
 
 ### Scaling Horizontally
-Docker Compose allows the administrator to start multiple instances of the same ser-
-vice using the `--scale` parameter when starting such as `-–scale aggregator=5 -–scale nginx=10`. 
+Docker Compose allows the administrator to start multiple instances of the same service using the `--scale` parameter 
+when starting such as `-–scale aggregator=5 -–scale nginx=10`. 
 
 Load will be balanced between these instances using the round-robin system of the docker internal DNS service.
 Additional tools such as Docker Swarm or Kubernetes could be used to deploy the containers if required.
@@ -253,49 +251,44 @@ Additional tools such as Docker Swarm or Kubernetes could be used to deploy the 
 This can also be used to omit unused services by scaling them to zero.
 
 ### Updating Code and Dependencies
-Updates to the source code can be retrieved using `git pull`, after which the release
-notes and change log should be checked for any changes that need to be made to the
-configuration or migrations that need to be applied manually.
+Updates to the source code can be retrieved using `git pull`, after which the release notes and change log should be 
+checked for any changes that need to be made to the configuration or migrations that need to be applied manually.
 
-Afterwards, the images can be recompiled and the service restarted in its new version
-as described above.
+Afterwards, the images can be recompiled and the service restarted in its new version as described above.
 
-As this project uses Docker images, effectively installing entire operating systems (with-
-out their kernel), images should be regularly rebuilt even if the project itself did not
-change.
+As this project uses Docker images, effectively installing entire operating systems (without their kernel), images 
+should be regularly rebuilt even if the project itself did not change.
 
-Unused images, especially the ones used for compilation can occupy a lot of space. They
-can be cleaned up using `docker system prune --all`.
+Unused images, especially the ones used for compilation can occupy a lot of space. 
+They can be cleaned up using `docker system prune --all`.
 
 ### Persistent Data
-Only the configuration for the services and the OpenPGP-CA database needs to be
-persisted and backed up. The rest of the data is only temporary and can be recreated as
-needed. The WKD directory is derived from the OpenPGP-CA database and the verifier
-database only stores pending verifications that can simply be restarted as needed.
+Only the configuration for the services and the OpenPGP-CA database needs to be persisted and backed up. 
+The rest of the data is only temporary and can be recreated as needed. 
+The WKD directory is derived from the OpenPGP-CA database and the verifier database only stores pending verifications 
+that can simply be restarted as needed.
 
 ### Without Docker
-Should Docker not be desired, all of these steps can be performed without it by using
-the `docker-compose.yml` and `Dockerfile` files as a reference for what needs to be done.
+Should Docker not be desired, all of these steps can be performed without it by using the `docker-compose.yml` and 
+`Dockerfile` files as a reference for what needs to be done.
 
 ### Reverse Proxy for TLS Termination
-PortuLock expects to be run behind a reverse proxy that provides TLS termination to
-simplify the setup and allow PortuLock to coexist with other services on the same IP
-address and port. Encrypted connections are required to ensure integrity, authenticity
-and confidentiality for clients performing lookups or submitting keys and especially pre-
-venting interception of SSO token information. Furthermore, WKD requires certificates
-to be served over TLS to ensure that they are indeed published by the domain and
+PortuLock expects to be run behind a reverse proxy that provides TLS termination to simplify the setup and allow 
+PortuLock to coexist with other services on the same IP address and port. 
+Encrypted connections are required to ensure integrity, authenticity and confidentiality for clients performing lookups 
+or submitting keys and especially preventing interception of SSO token information. 
+Furthermore, WKD requires certificates to be served over TLS to ensure that they are indeed published by the domain and 
 prevent attacks.
 
 The same reverse proxy can also be used to log requests for audit purposes as required.
-For example one might want to log requests to the certificate update and verification
-endpoints including their payload but might not want (or be allowed) to log lookup re-
-quests. Separating these logs from the application ensures their availability and integrity
-even if the keyserver itself might be compromised.
+For example one might want to log requests to the certificate update and verification endpoints including their payload 
+but might not want (or be allowed) to log lookup requests. 
+Separating these logs from the application ensures their availability and integrity even if the keyserver itself might 
+be compromised.
 
-This reverse proxy must receive and forward traffic for the domain `openpgpkey.<domain>`,
-that will be used by WKD clients to locate keys and an additional domain such as
-`keyserver.<domain>` that clients will use to contact the server for API interactions and
-the web generator.
+This reverse proxy must receive and forward traffic for the domain `openpgpkey.<domain>`, that will be used by WKD 
+clients to locate keys and an additional domain such as`keyserver.<domain>` that clients will use to contact the server
+for API interactions and the web generator.
 
 ## Further Details
 Further details are described in the associated master thesis, which is provided in `thesis.pdf`.
